@@ -14,7 +14,7 @@ To run this dashboard locally, follow these steps:
 
 1.  **Clone the repository:**
 
-    `git clone https://github.com/TiagoAdriaNunes/imdb_top_5000.git cd imdb_top_500`
+    `git clone https://github.com/TiagoAdriaNunes/imdb_top_5000.git cd imdb_top_5000`
 
 2.  **Install the required packages:**
 
