@@ -5,7 +5,7 @@ This GitHub repository contains the code for a Shiny dashboard written in R that
 ## Features
 
 - **Interactive Shiny App**: Visualize and interact with the movie data.
-- **Data Filtering**: Pre-import filtering of data to ensure quality and relevance.
+- **Data Filtering**: Pre-import filtering of data to ensure better memory handling.
 - **Detailed Analysis**: Various analyses including genre distribution, ratings, and more.
 
 ## Installation
