@@ -4,7 +4,7 @@ library(DT)
 library(dplyr)
 
 # Load the data
-data <- read.csv("data/results_by_directors.csv")
+data <- read.csv("app/data/results_by_directors.csv")
 
 # Define UI
 ui <- dashboardPage(
@@ -16,7 +16,7 @@ ui <- dashboardPage(
                                  "LinkedIn", 
                                  style = "color: white; padding: 10px;")),
                   tags$li(class = "dropdown",
-                          tags$a(href = "https://github.com/TiagoAdriaNunes", 
+                          tags$a(href = "https://github.com/TiagoAdriaNunes/imdb_top_5000", 
                                  target = "_blank", 
                                  icon("github"),
                                  "GitHub", 
@@ -24,7 +24,7 @@ ui <- dashboardPage(
   ),
   dashboardSidebar(
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 06/21/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 06/26/2024"), tabName = "dashboard", icon = icon("dashboard")),
       textInput("primaryTitle", "Title", value = ""),
       textInput("director", "Director", value = ""),
       textInput("genre", "Genre", value = ""),
