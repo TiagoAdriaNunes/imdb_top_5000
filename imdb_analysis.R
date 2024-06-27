@@ -124,9 +124,6 @@ results_by_directors$IMDbLink <- paste0(
   '</a>'
 )
 
-# Optionally remove the original tconst column
-# results_by_directors$tconst <- NULL
-
 # Reorder columns to make IMDbLink the first column
 results_by_directors <- results_by_directors[, c("IMDbLink", "primaryTitle", "startYear", "rank", "averageRating", "numVotes", "directors", "genres")]
 
