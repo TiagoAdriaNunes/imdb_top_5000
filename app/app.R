@@ -4,7 +4,7 @@ library(DT)
 library(dplyr)
 
 # Load the data
-data <- read.csv("app/data/results_by_directors.csv")
+data <- read.csv("data/results_by_directors.csv")
 
 # Define UI
 ui <- dashboardPage(
