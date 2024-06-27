@@ -23,8 +23,23 @@ ui <- dashboardPage(
                                  style = "color: white; padding: 10px;"))
   ),
   dashboardSidebar(
+    tags$head(
+      tags$style(HTML("
+        .reset-button-container {
+          display: flex;
+          justify-content: flex-end;
+          padding: 10px;
+        }
+        .sidebar-menu .shiny-input-container {
+          margin-bottom: 5px;  /* Reduce space between inputs */
+        }
+        .sidebar-menu .form-group {
+          margin-bottom: 5px;  /* Reduce space between input groups */
+        }
+      "))
+    ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 06/26/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 06/27/2024"), tabName = "dashboard", icon = icon("dashboard")),
       textInput("primaryTitle", "Title", value = ""),
       textInput("director", "Director", value = ""),
       textInput("genre", "Genre", value = ""),
@@ -43,7 +58,9 @@ ui <- dashboardPage(
       sliderInput("votes", "Number of Votes", 
                   min = min(data$numVotes, na.rm = TRUE), 
                   max = max(data$numVotes, na.rm = TRUE), 
-                  value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
+                  value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE))),
+      div(class = "reset-button-container", 
+          actionButton("reset", "Reset Filters", icon = icon("redo")))
     )
   ),
   dashboardBody(
@@ -52,7 +69,7 @@ ui <- dashboardPage(
 )
 
 # Define server logic
-server <- function(input, output) {
+server <- function(input, output, session) {
   filteredData <- reactive({
     data %>%
       filter(grepl(input$director, directors, ignore.case = TRUE),
@@ -67,6 +84,16 @@ server <- function(input, output) {
   output$dataTable <- renderDT({
     datatable(filteredData(), escape = FALSE, options = list(pageLength = 10), 
               colnames = c('IMDb Link', 'Title', 'Year', 'Rank', 'Average Rating', 'Number of Votes', 'Directors', 'Genres'))
+  })
+  
+  observeEvent(input$reset, {
+    updateTextInput(session, "primaryTitle", value = "")
+    updateTextInput(session, "director", value = "")
+    updateTextInput(session, "genre", value = "")
+    updateSliderInput(session, "year", value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE)))
+    updateSliderInput(session, "rank", value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)))
+    updateSliderInput(session, "rating", value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE)))
+    updateSliderInput(session, "votes", value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
   })
 }
 
