@@ -235,7 +235,7 @@ end_time <- Sys.time()
 time_taken <- end_time - start_time
 print(paste("Time taken: ", time_taken))
 ```
-##### Shiny Dashboard
+### Shiny Dashboard
 
 1. Data loading
 ```R
