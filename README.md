@@ -70,10 +70,10 @@ if (!dir.exists(data_dir)) {
 
 # Define file paths and URLs in a list
 files <- list(
-  title_principals = "https://datasets.imdbws.com/title.principals.tsv.gz",
-  name_basics      = "https://datasets.imdbws.com/name.basics.tsv.gz",
-  title_ratings    = "https://datasets.imdbws.com/title.ratings.tsv.gz",
-  title_basics     = "https://datasets.imdbws.com/title.basics.tsv.gz"
+  title_crew     = "https://datasets.imdbws.com/title.crew.tsv.gz",
+  name_basics    = "https://datasets.imdbws.com/name.basics.tsv.gz",
+  title_ratings  = "https://datasets.imdbws.com/title.ratings.tsv.gz",
+  title_basics   = "https://datasets.imdbws.com/title.basics.tsv.gz"
 )
 ```
 This section creates a directory for data storage if it doesn't already exist and defines the URLs for the IMDb datasets in a list.
@@ -134,10 +134,10 @@ This section merges the title_basics and title_ratings datasets on the tconst co
 
 6. Loading and Merging Additional Datasets:
 ```R
-title_principals <- read_and_filter(
-  files$title_principals,
-  "data/title.principals.tsv.gz",
-  c("tconst", "nconst", "category"),
+title_crew <- read_and_filter(
+  files$title_crew,
+  "data/title.crew.tsv.gz",
+  c("tconst", "directors"),
   id_filter = common_tconst,
   id_col = "tconst"
 )
@@ -146,7 +146,7 @@ name_basics <- read_and_filter(
   files$name_basics,
   "data/name.basics.tsv.gz",
   c("nconst", "primaryName"),
-  id_filter = unique(title_principals$nconst),
+  id_filter = unique(unlist(strsplit(title_crew$directors, ","))),
   id_col = "nconst"
 )
 ```
@@ -155,36 +155,18 @@ These lines load and filter the title_principals and name_basics datasets, ensur
 7. Extracting and Aggregating Director and Editor Data:
 ```R
 # Extract directors data
-directors <- title_principals[category == "director", .(tconst, nconst)]
+title_crew_long <- title_crew[, .(tconst, directors = unlist(strsplit(directors, ","))), by = tconst]
+setnames(title_crew_long, "tconst", "crew_tconst")
+directors_name <- merge(title_crew_long, name_basics, by.x = "directors", by.y = "nconst", all.x = TRUE)
+directors_name <- directors_name[, .(tconst = crew_tconst, directors = paste(primaryName, collapse = ", ")), by = crew_tconst]
 
-# Extract editors data
-editors <- title_principals[category == "editor", .(tconst, nconst)]
-
-# Merge directors and editors with name_basics
-directors_name <- merge(directors, name_basics, by = "nconst", all.x = TRUE)
-editors_name <- merge(editors, name_basics, by = "nconst", all.x = TRUE)
-
-# Replace NA values in primaryName with "-"
-directors_name[is.na(primaryName), primaryName := "-"]
-editors_name[is.na(primaryName), primaryName := "-"]
-
-# Aggregate director names
-directors_name_aggregated <- directors_name[, .(directors = paste(primaryName, collapse = ", ")), by = tconst]
-
-# Find tconsts without directors and use editors for them
-missing_directors_tconst <- setdiff(unique(title_basics_ratings$tconst), directors_name_aggregated$tconst)
-editors_name_aggregated <- editors_name[tconst %in% missing_directors_tconst, .(directors = paste(primaryName, collapse = ", ")), by = tconst]
-
-# Combine directors and editors
-combined_directors <- rbindlist(list(directors_name_aggregated, editors_name_aggregated), fill = TRUE)
-
-# Remove temporary data frames from memory
-rm(directors, editors, directors_name, editors_name, directors_name_aggregated, editors_name_aggregated, name_basics)
+# Remove title_crew data frame from memory
+rm(title_crew_long)
 gc()
 ```
 8. Ranking and Finalizing Results:
 ```R
-# Rankings: Ensure unique ranks by using tconst as a secondary criterion
+# Ensure unique ranks by using tconst as a secondary criterion
 title_basics_ratings <- title_basics_ratings[order(-averageRating * numVotes, tconst)]
 title_basics_ratings[, rank := .I]
 ranks <- title_basics_ratings[rank <= 5000]
@@ -196,8 +178,11 @@ result$genres <- gsub(",([^ ])", ", \\1", result$genres)
 rm(title_basics_ratings, ranks)
 gc()
 
+# Remove any duplicates and ensure only necessary columns are present
+directors_name <- unique(directors_name[, .(tconst, directors)])
+
 # Merge with the result data frame
-results_by_directors <- merge(result, combined_directors, by = "tconst", all.x = TRUE)
+results_by_directors <- merge(result, directors_name, by = "tconst", all.x = TRUE)
 
 # Order and select columns
 results_by_directors <- results_by_directors[order(rank)][, .(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, genres)]
@@ -210,9 +195,6 @@ results_by_directors$IMDbLink <- paste0(
   results_by_directors$tconst,
   '</a>'
 )
-
-# Optionally remove the original tconst column
-# results_by_directors$tconst <- NULL
 
 # Reorder columns to make IMDbLink the first column
 results_by_directors <- results_by_directors[, c("IMDbLink", "primaryTitle", "startYear", "rank", "averageRating", "numVotes", "directors", "genres")]
@@ -231,9 +213,14 @@ gc()
 # End measuring time
 end_time <- Sys.time()
 
-# Calculate and print the time taken
+# Calculate and print the time taken in minutes and seconds
 time_taken <- end_time - start_time
-print(paste("Time taken: ", time_taken))
+total_seconds <- as.numeric(time_taken, units = "secs")
+minutes <- floor(total_seconds / 60)
+seconds <- total_seconds %% 60
+
+print(paste("Time taken:", minutes, "minutes and", round(seconds, 2), "seconds"))
+
 ```
 ### Shiny Dashboard
 
