@@ -39,7 +39,7 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 06/27/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/01/2024"), tabName = "dashboard", icon = icon("dashboard")),
       textInput("primaryTitle", "Title", value = ""),
       textInput("director", "Director", value = ""),
       textInput("genre", "Genre", value = ""),
