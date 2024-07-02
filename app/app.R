@@ -3,7 +3,7 @@ library(shinydashboard)
 library(DT)
 library(dplyr)
 library(shinyWidgets)
-library(shinyBS)  # Load shinyBS library
+library(shinyBS)
 
 # Load the data
 data <- read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
@@ -51,7 +51,7 @@ ui <- dashboardPage(
             multiple = TRUE, 
             search = TRUE,
             noOfDisplayValues = 3,
-            optionsCount = 3,
+            optionsCount = 5,
             showValueAsTags = TRUE,
             showSelectedOptionsFirst = TRUE,
             position = "bottom left",
@@ -66,7 +66,7 @@ ui <- dashboardPage(
             search = TRUE,
             showSelectedOptionsFirst = TRUE,
             noOfDisplayValues = 3,
-            optionsCount = 3,
+            optionsCount = 5,
             showValueAsTags = TRUE,
             position = "bottom left",
             placeholder = "Enter director name..."
@@ -80,7 +80,7 @@ ui <- dashboardPage(
             showSelectedOptionsFirst = TRUE,
             showValueAsTags = TRUE,
             noOfDisplayValues = 3,
-            optionsCount = 3,
+            optionsCount = 5,
             maxValues = 3,
             tooltipMaxWidth = 'Any movie just have 3 genres or less.',
             position = "bottom left",
