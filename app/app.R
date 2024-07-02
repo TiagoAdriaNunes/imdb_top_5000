@@ -2,15 +2,17 @@ library(shiny)
 library(shinydashboard)
 library(DT)
 library(dplyr)
+library(shinyWidgets)
+library(shinyBS)  # Load shinyBS library
 
 # Load the data
-data <- read.csv("data/results_by_directors.csv")
+data <- read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
 
-# Extract unique movie titles and director names for selectizeInput choices
-unique_titles <- unique(data$primaryTitle)
+# Extract unique movie titles and director names for virtualSelectInput choices
+unique_titles <- unique(as.character(data$primaryTitle))
 unique_directors <- unique(unlist(strsplit(as.character(data$directors), ",\\s*")))
 
-# Extract unique genres for selectizeInput choices and order them alphabetically
+# Extract unique genres for virtualSelectInput choices and order them alphabetically
 unique_genres <- sort(unique(unlist(strsplit(as.character(data$genres), ",\\s*"))))
 
 # Define UI
@@ -32,51 +34,61 @@ ui <- dashboardPage(
   dashboardSidebar(
     tags$head(
       tags$style(HTML("
-        .reset-button-container {
-          display: flex;
-          justify-content: flex-end;
-          padding: 10px;
-        }
-        .sidebar-menu .shiny-input-container {
-          margin-bottom: 5px;  /* Reduce space between inputs */
-        }
-        .sidebar-menu .form-group {
-          margin-bottom: 5px;  /* Reduce space between input groups */
+        .vscomp-dropbox-container {
+          z-index: 99999 !important;
         }
       "))
     ),
     sidebarMenu(
       menuItem(HTML("Top 5000 Movies<br>Last Update: 07/01/2024"), tabName = "dashboard", icon = icon("dashboard")),
-      selectizeInput(
-        inputId = "primaryTitle", 
-        label = "Title", 
-        choices = unique_titles, 
-        multiple = TRUE, 
-        options = list(
-          create = FALSE,
-          maxItems = '1',
-          placeholder = "Enter movie title...",
-          plugins = list('remove_button'),
-          onDropdownOpen = I("function($dropdown) {if (!this.lastQuery.length) {this.close(); this.settings.openOnFocus = false;}}"),
-          onType = I("function (str) {if (str === '') {this.close();}}")
+      fluidRow(
+        column(
+          width = 12,
+          virtualSelectInput(
+            inputId = "primaryTitle", 
+            label = "Title", 
+            choices = unique_titles, 
+            multiple = TRUE, 
+            search = TRUE,
+            noOfDisplayValues = 3,
+            optionsCount = 3,
+            showValueAsTags = TRUE,
+            showSelectedOptionsFirst = TRUE,
+            position = "bottom left",
+            placeholder = "Enter movie title..."
+          ),
+          
+          virtualSelectInput(
+            inputId = "director", 
+            label = "Director", 
+            choices = unique_directors, 
+            multiple = TRUE, 
+            search = TRUE,
+            showSelectedOptionsFirst = TRUE,
+            noOfDisplayValues = 3,
+            optionsCount = 3,
+            showValueAsTags = TRUE,
+            position = "bottom left",
+            placeholder = "Enter director name..."
+          ),
+          virtualSelectInput(
+            inputId = "genre", 
+            label = "Genre", 
+            choices = unique_genres, 
+            multiple = TRUE, 
+            search = TRUE,
+            showSelectedOptionsFirst = TRUE,
+            showValueAsTags = TRUE,
+            noOfDisplayValues = 3,
+            optionsCount = 3,
+            maxValues = 3,
+            tooltipMaxWidth = 'Any movie just have 3 genres or less.',
+            position = "bottom left",
+            placeholder = "Select movie genres..."
+          ),
+          bsTooltip("genre", "Select genres (Max. 3).", placement = "right", options = list(container = "body"))
         )
       ),
-      selectizeInput(
-        inputId = "director", 
-        label = "Director", 
-        choices = unique_directors, 
-        multiple = TRUE, 
-        options = list(
-          create = FALSE,
-          maxItems = '1',
-          placeholder = "Enter director name...",
-          plugins = list('remove_button'),
-          onDropdownOpen = I("function($dropdown) {if (!this.lastQuery.length) {this.close(); this.settings.openOnFocus = false;}}"),
-          onType = I("function (str) {if (str === '') {this.close();}}")
-        )
-      ),
-      selectizeInput("genre", "Genre", choices = unique_genres, multiple = TRUE, 
-                     options = list(create = FALSE, maxItems = '3', placeholder = "Select movie genres...", plugins = list('remove_button'))),
       sliderInput("year", "Year", 
                   min = min(data$startYear, na.rm = TRUE), 
                   max = max(data$startYear, na.rm = TRUE), 
@@ -84,8 +96,7 @@ ui <- dashboardPage(
       sliderInput("rank", "Rank", 
                   min = min(data$rank, na.rm = TRUE), 
                   max = max(data$rank, na.rm = TRUE), 
-                  value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)),
-                  step = 500),
+                  value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE))),
       sliderInput("rating", "Average Rating", 
                   min = min(data$averageRating, na.rm = TRUE), 
                   max = max(data$averageRating, na.rm = TRUE), 
@@ -110,7 +121,8 @@ server <- function(input, output, session) {
     
     # Filter by directors
     if (length(input$director) > 0) {
-      filtered <- filtered %>% filter(sapply(strsplit(directors, ",\\s*"), function(d) any(input$director %in% d)))
+      filtered <- filtered %>% 
+        filter(sapply(strsplit(as.character(directors), ",\\s*"), function(d) any(input$director %in% d)))
     }
     
     # Filter by movie titles
@@ -128,22 +140,20 @@ server <- function(input, output, session) {
     # Filter by genres
     if (length(input$genre) > 0) {
       filtered <- filtered %>%
-        filter(sapply(strsplit(genres, ",\\s*"), function(g) all(input$genre %in% g)))
+        filter(sapply(strsplit(as.character(genres), ",\\s*"), function(g) all(input$genre %in% g)))
     }
     
     filtered
   })
   
   output$dataTable <- renderDT({
-    datatable(filteredData() %>% select(Title_IMDb_Link, startYear, rank, averageRating, numVotes, directors, genres), 
+    datatable(filteredData() %>% 
+                select(Title_IMDb_Link, startYear, rank, averageRating, numVotes, directors, genres), 
               escape = FALSE, options = list(pageLength = 10, searchHighlight = TRUE),
               colnames = c('Title/IMDb Link', 'Year', 'Rank', 'Average Rating', 'Number of Votes', 'Directors', 'Genres'))
   })
   
   observeEvent(input$reset, {
-    updateSelectizeInput(session, "primaryTitle", selected = character(0))
-    updateSelectizeInput(session, "director", selected = character(0))
-    updateSelectizeInput(session, "genre", selected = character(0))
     updateSliderInput(session, "year", value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE)))
     updateSliderInput(session, "rank", value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)))
     updateSliderInput(session, "rating", value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE)))

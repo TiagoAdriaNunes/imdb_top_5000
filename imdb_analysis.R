@@ -16,7 +16,7 @@ if (!dir.exists(data_dir)) {
   dir.create(data_dir)
 }
 
-# Define file paths and URLs in a list
+# Define file paths and URLs in a list - https://developer.imdb.com/non-commercial-datasets/
 files <- list(
   title_crew     = "https://datasets.imdbws.com/title.crew.tsv.gz",
   name_basics    = "https://datasets.imdbws.com/name.basics.tsv.gz",
