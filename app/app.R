@@ -1,8 +1,8 @@
 library(shiny)
 library(shinydashboard)
-library(DT)
 library(dplyr)
 library(shinyWidgets)
+library(reactable)
 
 # Load the data
 data <- read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
@@ -122,7 +122,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
-    DTOutput("dataTable")
+    reactableOutput("dataTable")
   )
 )
 
@@ -158,11 +158,26 @@ server <- function(input, output, session) {
     filtered
   })
   
-  output$dataTable <- renderDT({
-    datatable(filteredData() %>% 
+  output$dataTable <- renderReactable({
+    reactable(filteredData() %>% 
                 select(Title_IMDb_Link, startYear, rank, averageRating, numVotes, directors, genres), 
-              escape = FALSE, options = list(pageLength = 10, searchHighlight = TRUE),
-              colnames = c('Title/IMDb Link', 'Year', 'Rank', 'Average Rating', 'Number of Votes', 'Directors', 'Genres'))
+              columns = list(
+                Title_IMDb_Link = colDef(name = "Title/IMDb Link", html = TRUE),
+                startYear = colDef(name = "Year", minWidth = 50, width = 50),
+                rank = colDef(name = "Rank", minWidth = 50, width = 50),
+                averageRating = colDef(name = "Average Rating", minWidth = 80, width = 80),
+                numVotes = colDef(name = "Number of Votes", minWidth = 80, width = 80),
+                directors = colDef(name = "Directors", minWidth = 200, width = 200),
+                genres = colDef(name = "Genres", minWidth = 200, width = 200)
+              ),
+              searchable = TRUE,
+              compact = TRUE,
+              defaultPageSize = 10,
+              pageSizeOptions = c(10, 25, 50, 100),
+              showPageSizeOptions = TRUE,
+              bordered = TRUE,
+              striped = TRUE,
+              highlight = TRUE)
   })
   
   observeEvent(input$reset, {
