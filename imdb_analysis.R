@@ -112,20 +112,25 @@ directors_name <- unique(directors_name[, .(tconst, directors)])
 # Merge with the result data frame
 results_by_directors <- merge(result, directors_name, by = "tconst", all.x = TRUE)
 
-# Order and select columns
-results_by_directors <- results_by_directors[order(rank)][, .(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, genres)]
-
-# Transform tconst to clickable links that open in a new tab
+# Create the new Title/IMDb Link column
 results_by_directors$IMDbLink <- paste0(
   '<a href="https://www.imdb.com/title/',
   results_by_directors$tconst,
-  '/" target="_blank">',
+  '" target="_blank">',
   results_by_directors$tconst,
   '</a>'
 )
 
-# Reorder columns to make IMDbLink the first column
-results_by_directors <- results_by_directors[, c("IMDbLink", "primaryTitle", "startYear", "rank", "averageRating", "numVotes", "directors", "genres")]
+results_by_directors$Title_IMDb_Link <- paste0(
+  '<a href="https://www.imdb.com/title/',
+  results_by_directors$tconst,
+  '" target="_blank">',
+  results_by_directors$primaryTitle,
+  '</a>'
+)
+
+# Order and select columns
+results_by_directors <- results_by_directors[order(rank)][, .(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, genres, IMDbLink, Title_IMDb_Link)]
 
 # Save results to CSV
 output_dir <- "app/data"
