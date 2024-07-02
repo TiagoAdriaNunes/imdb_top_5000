@@ -163,10 +163,10 @@ server <- function(input, output, session) {
                 select(Title_IMDb_Link, startYear, rank, averageRating, numVotes, directors, genres), 
               columns = list(
                 Title_IMDb_Link = colDef(name = "Title/IMDb Link", html = TRUE),
-                startYear = colDef(name = "Year", minWidth = 50, width = 50),
-                rank = colDef(name = "Rank", minWidth = 50, width = 50),
-                averageRating = colDef(name = "Average Rating", minWidth = 80, width = 80),
-                numVotes = colDef(name = "Number of Votes", minWidth = 80, width = 80),
+                startYear = colDef(name = "Year", minWidth = 60, width = 60),
+                rank = colDef(name = "Rank", minWidth = 60, width = 60),
+                averageRating = colDef(name = "Average Rating", minWidth = 100, width = 100),
+                numVotes = colDef(name = "Number of Votes", minWidth = 100, width = 100),
                 directors = colDef(name = "Directors", minWidth = 200, width = 200),
                 genres = colDef(name = "Genres", minWidth = 200, width = 200)
               ),
