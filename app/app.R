@@ -3,7 +3,6 @@ library(shinydashboard)
 library(DT)
 library(dplyr)
 library(shinyWidgets)
-library(shinyBS)
 
 # Load the data
 data <- read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
@@ -37,6 +36,12 @@ ui <- dashboardPage(
         .vscomp-dropbox-container {
           z-index: 99999 !important;
         }
+        .sidebar-menu > .menu-item {
+          margin-bottom: 0px !important;
+        }
+        .form-group {
+          margin-bottom: 0px !important;
+        }
       "))
     ),
     sidebarMenu(
@@ -50,6 +55,7 @@ ui <- dashboardPage(
             choices = unique_titles, 
             multiple = TRUE, 
             search = TRUE,
+            zIndex = 0,
             noOfDisplayValues = 3,
             optionsCount = 5,
             showValueAsTags = TRUE,
@@ -65,28 +71,34 @@ ui <- dashboardPage(
             multiple = TRUE, 
             search = TRUE,
             showSelectedOptionsFirst = TRUE,
+            zIndex = 0,
             noOfDisplayValues = 3,
             optionsCount = 5,
             showValueAsTags = TRUE,
             position = "bottom left",
             placeholder = "Enter director name..."
           ),
-          virtualSelectInput(
-            inputId = "genre", 
-            label = "Genre", 
-            choices = unique_genres, 
-            multiple = TRUE, 
-            search = TRUE,
-            showSelectedOptionsFirst = TRUE,
-            showValueAsTags = TRUE,
-            noOfDisplayValues = 3,
-            optionsCount = 5,
-            maxValues = 3,
-            tooltipMaxWidth = 'Any movie just have 3 genres or less.',
-            position = "bottom left",
-            placeholder = "Select movie genres..."
-          ),
-          bsTooltip("genre", "Select genres (Max. 3).", placement = "right", options = list(container = "body"))
+          
+          tags$div(
+            virtualSelectInput(
+              inputId = "genre", 
+              label = "Genre", 
+              choices = unique_genres, 
+              multiple = TRUE, 
+              search = TRUE,
+              showSelectedOptionsFirst = TRUE,
+              showValueAsTags = TRUE,
+              zIndex = 0,
+              noOfDisplayValues = 3,
+              optionsCount = 5,
+              maxValues = 3,
+              position = "bottom left",
+              placeholder = "Select movie genres..."
+            ),
+            `data-toggle` = "tooltip",
+            `data-placement` = "right",
+            title = "Select genres (Max.: 3)."
+          )
         )
       ),
       sliderInput("year", "Year", 
