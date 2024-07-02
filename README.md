@@ -18,7 +18,7 @@ git clone https://github.com/TiagoAdriaNunes/imdb_top_5000.git cd imdb_top_5000
 ```
 2.  **Install the required packages:**
 ```R
-install.packages(c("shiny", "shinydashboard", "DT", "dplyr", "shinyWidgets", "shinyBS", "data.table"))
+install.packages(c("shiny", "shinydashboard", "DT", "dplyr", "shinyWidgets", "data.table"))
 ```
 3.  **Run the Shiny app:**
 ```R
