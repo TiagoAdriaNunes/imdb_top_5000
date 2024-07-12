@@ -45,7 +45,7 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/01/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/12/2024"), tabName = "dashboard", icon = icon("dashboard")),
       fluidRow(
         column(
           width = 12,
@@ -118,7 +118,7 @@ ui <- dashboardPage(
                   max = max(data$numVotes, na.rm = TRUE), 
                   value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE))),
       div(class = "reset-button-container", 
-          actionButton("reset", "Reset Filters", icon = icon("redo")))
+          actionButton("reset", "Reset Sliders", icon = icon("redo")))
     )
   ),
   dashboardBody(
