@@ -14,11 +14,12 @@ To run this dashboard locally, follow these steps:
 
 1.  **Clone the repository:**
 ```R
-git clone https://github.com/TiagoAdriaNunes/imdb_top_5000.git cd imdb_top_5000
+git clone https://github.com/TiagoAdriaNunes/imdb_top_5000.git
+cd imdb_top_5000
 ```
 2.  **Install the required packages:**
 ```R
-install.packages(c("shiny", "shinydashboard", "DT", "dplyr", "shinyWidgets", "data.table"))
+install.packages(c("shiny", "shinydashboard", "dplyr", "shinyWidgets", "reactable"))
 ```
 3.  **Run the Shiny app:**
 ```R
@@ -68,7 +69,7 @@ if (!dir.exists(data_dir)) {
   dir.create(data_dir)
 }
 
-# Define file paths and URLs in a list
+# Define file paths and URLs in a list - https://developer.imdb.com/non-commercial-datasets/
 files <- list(
   title_crew     = "https://datasets.imdbws.com/title.crew.tsv.gz",
   name_basics    = "https://datasets.imdbws.com/name.basics.tsv.gz",
@@ -184,20 +185,25 @@ directors_name <- unique(directors_name[, .(tconst, directors)])
 # Merge with the result data frame
 results_by_directors <- merge(result, directors_name, by = "tconst", all.x = TRUE)
 
-# Order and select columns
-results_by_directors <- results_by_directors[order(rank)][, .(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, genres)]
-
-# Transform tconst to clickable links that open in a new tab
+# Create the new Title/IMDb Link column
 results_by_directors$IMDbLink <- paste0(
   '<a href="https://www.imdb.com/title/',
   results_by_directors$tconst,
-  '/" target="_blank">',
+  '" target="_blank">',
   results_by_directors$tconst,
   '</a>'
 )
 
-# Reorder columns to make IMDbLink the first column
-results_by_directors <- results_by_directors[, c("IMDbLink", "primaryTitle", "startYear", "rank", "averageRating", "numVotes", "directors", "genres")]
+results_by_directors$Title_IMDb_Link <- paste0(
+  '<a href="https://www.imdb.com/title/',
+  results_by_directors$tconst,
+  '" target="_blank">',
+  results_by_directors$primaryTitle,
+  '</a>'
+)
+
+# Order and select columns
+results_by_directors <- results_by_directors[order(rank)][, .(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, genres, IMDbLink, Title_IMDb_Link)]
 
 # Save results to CSV
 output_dir <- "app/data"
@@ -220,7 +226,7 @@ minutes <- floor(total_seconds / 60)
 seconds <- total_seconds %% 60
 
 print(paste("Time taken:", minutes, "minutes and", round(seconds, 2), "seconds"))
-
+"))
 ```
 ### Shiny Dashboard
 
@@ -252,53 +258,170 @@ dashboardHeader(title = "IMDb Data Dashboard",
 2.2 Sidebar
 ```R
 dashboardSidebar(
- sidebarMenu(
-   menuItem(HTML("Top 5000 Movies<br>Last Update: 06/26/2024"), tabName = "dashboard", icon = icon("dashboard")),
-   textInput("primaryTitle", "Title", value = ""),
-   textInput("director", "Director", value = ""),
-   textInput("genre", "Genre", value = ""),
-   sliderInput("year", "Year", 
-               min = min(data$startYear, na.rm = TRUE), 
-               max = max(data$startYear, na.rm = TRUE), 
-               value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE))),
-   sliderInput("rank", "Rank", 
-               min = min(data$rank, na.rm = TRUE), 
-               max = max(data$rank, na.rm = TRUE), 
-               value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE))),
-   sliderInput("rating", "Average Rating", 
-               min = min(data$averageRating, na.rm = TRUE), 
-               max = max(data$averageRating, na.rm = TRUE), 
-               value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE))),
-   sliderInput("votes", "Number of Votes", 
-               min = min(data$numVotes, na.rm = TRUE), 
-               max = max(data$numVotes, na.rm = TRUE), 
-               value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
- )
+  tags$head(
+    tags$style(HTML("
+      .vscomp-dropbox-container {
+        z-index: 99999 !important;
+      }
+      .sidebar-menu > .menu-item {
+        margin-bottom: 0px !important;
+      }
+      .form-group {
+        margin-bottom: 0px !important;
+      }
+    "))
+  ),
+  sidebarMenu(
+    menuItem(HTML("Top 5000 Movies<br>Last Update: 07/12/2024"), tabName = "dashboard", icon = icon("dashboard")),
+    fluidRow(
+      column(
+        width = 12,
+        virtualSelectInput(
+          inputId = "primaryTitle", 
+          label = "Title", 
+          choices = unique_titles, 
+          multiple = TRUE, 
+          search = TRUE,
+          zIndex = 0,
+          noOfDisplayValues = 3,
+          optionsCount = 5,
+          showValueAsTags = TRUE,
+          showSelectedOptionsFirst = TRUE,
+          position = "bottom left",
+          placeholder = "Enter movie title..."
+        ),
+        
+        virtualSelectInput(
+          inputId = "director", 
+          label = "Director", 
+          choices = unique_directors, 
+          multiple = TRUE, 
+          search = TRUE,
+          showSelectedOptionsFirst = TRUE,
+          zIndex = 0,
+          noOfDisplayValues = 3,
+          optionsCount = 5,
+          showValueAsTags = TRUE,
+          position = "bottom left",
+          placeholder = "Enter director name..."
+        ),
+        
+        tags$div(
+          virtualSelectInput(
+            inputId = "genre", 
+            label = "Genre", 
+            choices = unique_genres, 
+            multiple = TRUE, 
+            search = TRUE,
+            showSelectedOptionsFirst = TRUE,
+            showValueAsTags = TRUE,
+            zIndex = 0,
+            noOfDisplayValues = 3,
+            optionsCount = 5,
+            maxValues = 3,
+            position = "bottom left",
+            placeholder = "Select movie genres..."
+          ),
+          `data-toggle` = "tooltip",
+          `data-placement` = "right",
+          title = "Select genres (Max.: 3)."
+        )
+      )
+    ),
+    sliderInput("year", "Year", 
+                min = min(data$startYear, na.rm = TRUE), 
+                max = max(data$startYear, na.rm = TRUE), 
+                value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE))),
+    sliderInput("rank", "Rank", 
+                min = min(data$rank, na.rm = TRUE), 
+                max = max(data$rank, na.rm = TRUE), 
+                value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE))),
+    sliderInput("rating", "Average Rating", 
+                min = min(data$averageRating, na.rm = TRUE), 
+                max = max(data$averageRating, na.rm = TRUE), 
+                value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE))),
+    sliderInput("votes", "Number of Votes",
+                min = min(data$numVotes, na.rm = TRUE), 
+                max = max(data$numVotes, na.rm = TRUE), 
+                value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE))),
+    div(class = "reset-button-container", 
+        actionButton("reset", "Reset Sliders", icon = icon("redo")))
+  )
+)
 ```
-This part defines the main body of the dashboard, containing a data table output (dataTable).
-
+2.3 Main Body:
+```R
+dashboardBody(
+  reactableOutput("dataTable")
+)
+```
 3. Server Logic
 ```R
-server <- function(input, output) {
+server <- function(input, output, session) {
   filteredData <- reactive({
-    data %>%
-      filter(grepl(input$director, directors, ignore.case = TRUE),
-             grepl(input$genre, genres, ignore.case = TRUE),
-             grepl(input$primaryTitle, primaryTitle, ignore.case = TRUE),
-             startYear >= input$year[1] & startYear <= input$year[2],
+    filtered <- data
+    
+    # Filter by directors
+    if (length(input$director) > 0) {
+      filtered <- filtered %>% 
+        filter(sapply(strsplit(as.character(directors), ",\\s*"), function(d) any(input$director %in% d)))
+    }
+    
+    # Filter by movie titles
+    if (length(input$primaryTitle) > 0) {
+      filtered <- filtered %>% filter(primaryTitle %in% input$primaryTitle)
+    }
+    
+    # Filter by other inputs
+    filtered <- filtered %>%
+      filter(startYear >= input$year[1] & startYear <= input$year[2],
              rank >= input$rank[1] & rank <= input$rank[2],
              averageRating >= input$rating[1] & averageRating <= input$rating[2],
              numVotes >= input$votes[1] & numVotes <= input$votes[2])
+    
+    # Filter by genres
+    if (length(input$genre) > 0) {
+      filtered <- filtered %>%
+        filter(sapply(strsplit(as.character(genres), ",\\s*"), function(g) all(input$genre %in% g)))
+    }
+    
+    filtered
   })
   
-  output$dataTable <- renderDT({
-    datatable(filteredData(), escape = FALSE, options = list(pageLength = 10), 
-              colnames = c('IMDb Link', 'Title', 'Year', 'Rank', 'Average Rating', 'Number of Votes', 'Directors', 'Genres'))
+  output$dataTable <- renderReactable({
+    reactable(filteredData() %>% 
+                select(Title_IMDb_Link, startYear, rank, averageRating, numVotes, directors, genres), 
+              columns = list(
+                Title_IMDb_Link = colDef(name = "Title/IMDb Link", html = TRUE),
+                startYear = colDef(name = "Year", minWidth = 60, width = 60),
+                rank = colDef(name = "Rank", minWidth = 60, width = 60),
+                averageRating = colDef(name = "Average Rating", minWidth = 100, width = 100),
+                numVotes = colDef(name = "Number of Votes", minWidth = 100, width = 100),
+                directors = colDef(name = "Directors", minWidth = 200, width = 200),
+                genres = colDef(name = "Genres", minWidth = 200, width = 200)
+              ),
+              searchable = TRUE,
+              compact = TRUE,
+              defaultPageSize = 10,
+              pageSizeOptions = c(10, 25, 50, 100),
+              showPageSizeOptions = TRUE,
+              bordered = TRUE,
+              striped = TRUE,
+              highlight = TRUE)
+  })
+  
+  observeEvent(input$reset, {
+    updateSliderInput(session, "year", value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE)))
+    updateSliderInput(session, "rank", value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)))
+    updateSliderInput(session, "rating", value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE)))
+    updateSliderInput(session, "votes", value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
   })
 }
+
+# Run the app
+shinyApp(ui, server)
+
 ```
-Reactive Data Filtering: filteredData is a reactive expression that filters the data based on user inputs.
-Data Table Rendering: output$dataTable renders the filtered data as an interactive data table using DT::renderDT().
 
 ## Author
 
