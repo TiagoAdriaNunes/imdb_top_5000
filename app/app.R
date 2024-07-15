@@ -3,6 +3,8 @@ library(shinydashboard)
 library(dplyr)
 library(shinyWidgets)
 library(reactable)
+library(tidyr)
+library(plotly)
 
 # Load the data
 data <- read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
@@ -45,7 +47,7 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/12/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/15/2024"), tabName = "dashboard", icon = icon("dashboard")),
       fluidRow(
         column(
           width = 12,
@@ -117,11 +119,25 @@ ui <- dashboardPage(
                   min = min(data$numVotes, na.rm = TRUE), 
                   max = max(data$numVotes, na.rm = TRUE), 
                   value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE))),
+      sliderInput("num_results", "Number of Rows to Display in Graph", 
+                  min = 1, max = 20, value = 10),
       div(class = "reset-button-container", 
           actionButton("reset", "Reset Sliders", icon = icon("redo")))
     )
   ),
   dashboardBody(
+    fluidRow(
+      box(
+        title = "Best Directors by Movies",
+        width = 6,
+        plotlyOutput("plot_directors_by_movies")
+      ),
+      box(
+        title = "Best Genres by Movies",
+        width = 6,
+        plotlyOutput("plot_genres_by_movies")
+      )
+    ),
     reactableOutput("dataTable")
   )
 )
@@ -170,7 +186,7 @@ server <- function(input, output, session) {
                 directors = colDef(name = "Directors", minWidth = 200, width = 200),
                 genres = colDef(name = "Genres", minWidth = 200, width = 200)
               ),
-              searchable = TRUE,
+              searchable = FALSE,
               compact = TRUE,
               defaultPageSize = 10,
               pageSizeOptions = c(10, 25, 50, 100),
@@ -180,11 +196,62 @@ server <- function(input, output, session) {
               highlight = TRUE)
   })
   
+  # Plot: Best Directors by Movies
+  output$plot_directors_by_movies <- renderPlotly({
+    plot_data <- filteredData() %>%
+      separate_rows(directors, sep = ",\\s*") %>%
+      group_by(directors) %>%
+      summarise(movie_count = n()) %>%
+      arrange(desc(movie_count)) %>%
+      head(input$num_results) %>%
+      mutate(directors = factor(directors, levels = rev(unique(directors))))
+    
+    plot_ly(
+      data = plot_data,
+      x = ~movie_count,
+      y = ~directors,
+      type = "bar",
+      marker = list(color = "#427ea6"),
+      orientation = "h"
+    ) %>%
+      layout(
+        xaxis = list(title = "Number of Movies"),
+        yaxis = list(title = "Director")
+      ) %>%
+      config(displayModeBar = FALSE)
+  })
+  
+  # Plot: Best Genres by Movies
+  output$plot_genres_by_movies <- renderPlotly({
+    plot_data <- filteredData() %>%
+      separate_rows(genres, sep = ",\\s*") %>%
+      group_by(genres) %>%
+      summarise(movie_count = n()) %>%
+      arrange(desc(movie_count)) %>%
+      head(input$num_results) %>%
+      mutate(genres = factor(genres, levels = rev(unique(genres))))
+    
+    plot_ly(
+      data = plot_data,
+      x = ~movie_count,
+      y = ~genres,
+      type = "bar",
+      marker = list(color = "#427ea6"),
+      orientation = "h"
+    ) %>%
+      layout(
+        xaxis = list(title = "Number of Movies"),
+        yaxis = list(title = "Genre")
+      ) %>%
+      config(displayModeBar = FALSE)
+  })
+  
   observeEvent(input$reset, {
     updateSliderInput(session, "year", value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE)))
     updateSliderInput(session, "rank", value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)))
     updateSliderInput(session, "rating", value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE)))
     updateSliderInput(session, "votes", value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
+    updateNumericInput(session, "num_results", value = 10)
   })
 }
 
