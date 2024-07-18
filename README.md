@@ -19,16 +19,18 @@ cd imdb_top_5000
 ```
 2.  **Install the required packages:**
 ```R
-install.packages(c("shiny", "shinydashboard", "dplyr", "shinyWidgets", "reactable"))
+install.packages(c("data.table", "shiny", "shinydashboard", "dplyr", "shinyWidgets", "reactable", "tidyr", "plotly", "shinycssloaders"))
 ```
-3.  **Run the Shiny app:**
-```R
-shiny::runApp()
-```
-4. To perform the analysis, run the `imdb_analysis.R` script:
+3. **To perform the analysis, run the** `imdb_analysis.R` **script:**
 ```R
 source("imdb_analysis.R")
 ```
+
+4.  **Run the Shiny app:**
+```R
+shiny::runApp()
+```
+
 ## Usage
 
 -   **Title Filter:** Enter a movie title to search for specific movies.

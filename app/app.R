@@ -5,9 +5,20 @@ library(shinyWidgets)
 library(reactable)
 library(tidyr)
 library(plotly)
+library(shinycssloaders)
 
 # Load the data
-data <- read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
+data <- tryCatch({
+  read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
+}, error = function(e) {
+  message("Error loading data: ", e)
+  NULL
+})
+
+# Ensure data is loaded
+if (is.null(data)) {
+  stop("Failed to load data.")
+}
 
 # Extract unique movie titles and director names for virtualSelectInput choices
 unique_titles <- unique(as.character(data$primaryTitle))
@@ -47,13 +58,13 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/15/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/18/2024"), tabName = "dashboard", icon = icon("dashboard")),
       fluidRow(
         column(
           width = 12,
           virtualSelectInput(
             inputId = "primaryTitle", 
-            label = "Title", 
+            label = "Title",
             choices = unique_titles, 
             multiple = TRUE, 
             search = TRUE,
@@ -81,25 +92,20 @@ ui <- dashboardPage(
             placeholder = "Enter director name..."
           ),
           
-          tags$div(
-            virtualSelectInput(
-              inputId = "genre", 
-              label = "Genre", 
-              choices = unique_genres, 
-              multiple = TRUE, 
-              search = TRUE,
-              showSelectedOptionsFirst = TRUE,
-              showValueAsTags = TRUE,
-              zIndex = 0,
-              noOfDisplayValues = 3,
-              optionsCount = 5,
-              maxValues = 3,
-              position = "bottom left",
-              placeholder = "Select movie genres..."
-            ),
-            `data-toggle` = "tooltip",
-            `data-placement` = "right",
-            title = "Select genres (Max.: 3)."
+          virtualSelectInput(
+            inputId = "genre", 
+            label = "Genre (Max: 3)", 
+            choices = unique_genres, 
+            multiple = TRUE, 
+            search = TRUE,
+            showSelectedOptionsFirst = TRUE,
+            showValueAsTags = TRUE,
+            zIndex = 0,
+            noOfDisplayValues = 3,
+            optionsCount = 5,
+            maxValues = 3,
+            position = "bottom left",
+            placeholder = "Select genres (Max: 3)..."
           )
         )
       ),
@@ -130,12 +136,20 @@ ui <- dashboardPage(
       box(
         title = "Best Directors by Movies",
         width = 6,
-        plotlyOutput("plot_directors_by_movies")
+        shinycssloaders::withSpinner(
+          plotlyOutput("plot_directors_by_movies"), 
+          type = 4, 
+          color = "#427ea6"
+        )
       ),
       box(
         title = "Best Genres by Movies",
         width = 6,
-        plotlyOutput("plot_genres_by_movies")
+        shinycssloaders::withSpinner(
+          plotlyOutput("plot_genres_by_movies"), 
+          type = 4, 
+          color = "#427ea6"
+        )
       )
     ),
     reactableOutput("dataTable")
@@ -144,7 +158,9 @@ ui <- dashboardPage(
 
 # Define server logic
 server <- function(input, output, session) {
-  filteredData <- reactive({
+  
+  # Function to filter data
+  filter_data <- function() {
     filtered <- data
     
     # Filter by directors
@@ -172,6 +188,11 @@ server <- function(input, output, session) {
     }
     
     filtered
+  }
+  
+  # Reactive expression for filtered data
+  filteredData <- reactive({
+    filter_data()
   })
   
   output$dataTable <- renderReactable({
@@ -196,6 +217,32 @@ server <- function(input, output, session) {
               highlight = TRUE)
   })
   
+  # Function to create plots
+  create_plot <- function(data, x, y, x_title, y_title) {
+    if (nrow(data) == 0) {
+      plot_ly() %>%
+        layout(
+          title = "No data found, try other filter selection.",
+          xaxis = list(showline = FALSE, showticklabels = FALSE, zeroline = FALSE),
+          yaxis = list(showline = FALSE, showticklabels = FALSE, zeroline = FALSE)
+        )
+    } else {
+      plot_ly(
+        data = data,
+        x = x,
+        y = y,
+        type = "bar",
+        marker = list(color = "#427ea6"),
+        orientation = "h"
+      ) %>%
+        layout(
+          xaxis = list(title = x_title),
+          yaxis = list(title = y_title)
+        ) %>%
+        config(displayModeBar = FALSE)
+    }
+  }
+  
   # Plot: Best Directors by Movies
   output$plot_directors_by_movies <- renderPlotly({
     plot_data <- filteredData() %>%
@@ -206,19 +253,7 @@ server <- function(input, output, session) {
       head(input$num_results) %>%
       mutate(directors = factor(directors, levels = rev(unique(directors))))
     
-    plot_ly(
-      data = plot_data,
-      x = ~movie_count,
-      y = ~directors,
-      type = "bar",
-      marker = list(color = "#427ea6"),
-      orientation = "h"
-    ) %>%
-      layout(
-        xaxis = list(title = "Number of Movies"),
-        yaxis = list(title = "Director")
-      ) %>%
-      config(displayModeBar = FALSE)
+    create_plot(plot_data, ~movie_count, ~directors, "Number of Movies", "Director")
   })
   
   # Plot: Best Genres by Movies
@@ -231,19 +266,7 @@ server <- function(input, output, session) {
       head(input$num_results) %>%
       mutate(genres = factor(genres, levels = rev(unique(genres))))
     
-    plot_ly(
-      data = plot_data,
-      x = ~movie_count,
-      y = ~genres,
-      type = "bar",
-      marker = list(color = "#427ea6"),
-      orientation = "h"
-    ) %>%
-      layout(
-        xaxis = list(title = "Number of Movies"),
-        yaxis = list(title = "Genre")
-      ) %>%
-      config(displayModeBar = FALSE)
+    create_plot(plot_data, ~movie_count, ~genres, "Number of Movies", "Genre")
   })
   
   observeEvent(input$reset, {
