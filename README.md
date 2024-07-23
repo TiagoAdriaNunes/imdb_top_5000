@@ -19,7 +19,7 @@ cd imdb_top_5000
 ```
 2.  **Install the required packages:**
 ```R
-install.packages(c("data.table", "shiny", "shinydashboard", "dplyr", "shinyWidgets", "reactable", "tidyr", "plotly", "shinycssloaders"))
+install.packages(c("R.utils","data.table", "shiny", "shinydashboard", "dplyr", "shinyWidgets", "reactable", "tidyr", "plotly", "shinycssloaders"))
 ```
 3. **To perform the analysis, run the** `imdb_analysis.R` **script:**
 ```R
