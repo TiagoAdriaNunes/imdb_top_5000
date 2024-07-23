@@ -9,7 +9,7 @@ library(shinycssloaders)
 
 # Load the data
 data <- tryCatch({
-  read.csv("data/results_by_directors.csv", stringsAsFactors = FALSE)
+  read.csv("data/results_with_crew.csv", stringsAsFactors = FALSE)
 }, error = function(e) {
   message("Error loading data: ", e)
   NULL
@@ -20,11 +20,17 @@ if (is.null(data)) {
   stop("Failed to load data.")
 }
 
-# Extract unique movie titles and director names for virtualSelectInput choices
+# Verify the columns in the loaded data
+required_columns <- c("primaryTitle", "startYear", "rank", "averageRating", "numVotes", "directors", "writers", "genres", "Title_IMDb_Link")
+missing_columns <- setdiff(required_columns, names(data))
+if (length(missing_columns) > 0) {
+  stop("The following required columns are missing from the data: ", paste(missing_columns, collapse = ", "))
+}
+
+# Extract unique movie titles, director names, and writer names for virtualSelectInput choices
 unique_titles <- unique(as.character(data$primaryTitle))
 unique_directors <- unique(unlist(strsplit(as.character(data$directors), ",\\s*")))
-
-# Extract unique genres for virtualSelectInput choices and order them alphabetically
+unique_writers <- unique(unlist(strsplit(as.character(data$writers), ",\\s*")))
 unique_genres <- sort(unique(unlist(strsplit(as.character(data$genres), ",\\s*"))))
 
 # Define UI
@@ -58,7 +64,7 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/18/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/22/2024"), tabName = "dashboard", icon = icon("dashboard")),
       fluidRow(
         column(
           width = 12,
@@ -90,6 +96,21 @@ ui <- dashboardPage(
             showValueAsTags = TRUE,
             position = "bottom left",
             placeholder = "Enter director name..."
+          ),
+          
+          virtualSelectInput(
+            inputId = "writer", 
+            label = "Writer", 
+            choices = unique_writers, 
+            multiple = TRUE, 
+            search = TRUE,
+            showSelectedOptionsFirst = TRUE,
+            zIndex = 0,
+            noOfDisplayValues = 3,
+            optionsCount = 5,
+            showValueAsTags = TRUE,
+            position = "bottom left",
+            placeholder = "Enter writer name..."
           ),
           
           virtualSelectInput(
@@ -134,21 +155,36 @@ ui <- dashboardPage(
   dashboardBody(
     fluidRow(
       box(
-        title = "Best Directors by Movies",
-        width = 6,
-        shinycssloaders::withSpinner(
-          plotlyOutput("plot_directors_by_movies"), 
-          type = 4, 
-          color = "#427ea6"
-        )
-      ),
-      box(
-        title = "Best Genres by Movies",
-        width = 6,
-        shinycssloaders::withSpinner(
-          plotlyOutput("plot_genres_by_movies"), 
-          type = 4, 
-          color = "#427ea6"
+        title = "Best Directors, Writers, and Genres by Movies",
+        width = 12,
+        fluidRow(
+          column(
+            width = 4,
+            shinycssloaders::withSpinner(
+              plotlyOutput("plot_directors_by_movies"), 
+              type = 3, 
+              color = "#427ea6",
+              color.background = "#FFFFFF"
+            )
+          ),
+          column(
+            width = 4,
+            shinycssloaders::withSpinner(
+              plotlyOutput("plot_writers_by_movies"), 
+              type = 3, 
+              color = "#427ea6",
+              color.background = "#FFFFFF"
+            )
+          ),
+          column(
+            width = 4,
+            shinycssloaders::withSpinner(
+              plotlyOutput("plot_genres_by_movies"), 
+              type = 3, 
+              color = "#427ea6",
+              color.background = "#FFFFFF"
+            )
+          )
         )
       )
     ),
@@ -167,6 +203,12 @@ server <- function(input, output, session) {
     if (length(input$director) > 0) {
       filtered <- filtered %>% 
         filter(sapply(strsplit(as.character(directors), ",\\s*"), function(d) any(input$director %in% d)))
+    }
+    
+    # Filter by writers
+    if (length(input$writer) > 0) {
+      filtered <- filtered %>% 
+        filter(sapply(strsplit(as.character(writers), ",\\s*"), function(w) any(input$writer %in% w)))
     }
     
     # Filter by movie titles
@@ -197,15 +239,16 @@ server <- function(input, output, session) {
   
   output$dataTable <- renderReactable({
     reactable(filteredData() %>% 
-                select(Title_IMDb_Link, startYear, rank, averageRating, numVotes, directors, genres), 
+                select(Title_IMDb_Link, startYear, rank, averageRating, numVotes, directors, writers, genres), 
               columns = list(
-                Title_IMDb_Link = colDef(name = "Title/IMDb Link", html = TRUE),
-                startYear = colDef(name = "Year", minWidth = 60, width = 60),
-                rank = colDef(name = "Rank", minWidth = 60, width = 60),
-                averageRating = colDef(name = "Average Rating", minWidth = 100, width = 100),
-                numVotes = colDef(name = "Number of Votes", minWidth = 100, width = 100),
-                directors = colDef(name = "Directors", minWidth = 200, width = 200),
-                genres = colDef(name = "Genres", minWidth = 200, width = 200)
+                Title_IMDb_Link = colDef(name = "Title/IMDb Link", html = TRUE, minWidth = 220),
+                startYear = colDef(name = "Year", minWidth = 50),
+                rank = colDef(name = "Rank", minWidth = 50),
+                averageRating = colDef(name = "Average Rating", minWidth = 70),
+                numVotes = colDef(name = "Number of Votes", minWidth = 80),
+                directors = colDef(name = "Directors", minWidth = 150),
+                writers = colDef(name = "Writers", minWidth = 200),
+                genres = colDef(name = "Genres", minWidth = 180)
               ),
               searchable = FALSE,
               compact = TRUE,
@@ -217,30 +260,21 @@ server <- function(input, output, session) {
               highlight = TRUE)
   })
   
-  # Function to create plots
+  # Function to create individual plots
   create_plot <- function(data, x, y, x_title, y_title) {
-    if (nrow(data) == 0) {
-      plot_ly() %>%
-        layout(
-          title = "No data found, try other filter selection.",
-          xaxis = list(showline = FALSE, showticklabels = FALSE, zeroline = FALSE),
-          yaxis = list(showline = FALSE, showticklabels = FALSE, zeroline = FALSE)
-        )
-    } else {
-      plot_ly(
-        data = data,
-        x = x,
-        y = y,
-        type = "bar",
-        marker = list(color = "#427ea6"),
-        orientation = "h"
+    plot_ly(
+      data = data,
+      x = x,
+      y = y,
+      type = "bar",
+      marker = list(color = "#427ea6"),
+      orientation = "h"
+    ) %>%
+      layout(
+        xaxis = list(title = x_title),
+        yaxis = list(title = y_title)
       ) %>%
-        layout(
-          xaxis = list(title = x_title),
-          yaxis = list(title = y_title)
-        ) %>%
-        config(displayModeBar = FALSE)
-    }
+      config(displayModeBar = FALSE)
   }
   
   # Plot: Best Directors by Movies
@@ -254,6 +288,19 @@ server <- function(input, output, session) {
       mutate(directors = factor(directors, levels = rev(unique(directors))))
     
     create_plot(plot_data, ~movie_count, ~directors, "Number of Movies", "Director")
+  })
+  
+  # Plot: Best Writers by Movies
+  output$plot_writers_by_movies <- renderPlotly({
+    plot_data <- filteredData() %>%
+      separate_rows(writers, sep = ",\\s*") %>%
+      group_by(writers) %>%
+      summarise(movie_count = n()) %>%
+      arrange(desc(movie_count)) %>%
+      head(input$num_results) %>%
+      mutate(writers = factor(writers, levels = rev(unique(writers))))
+    
+    create_plot(plot_data, ~movie_count, ~writers, "Number of Movies", "Writer")
   })
   
   # Plot: Best Genres by Movies
@@ -274,7 +321,7 @@ server <- function(input, output, session) {
     updateSliderInput(session, "rank", value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)))
     updateSliderInput(session, "rating", value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE)))
     updateSliderInput(session, "votes", value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
-    updateNumericInput(session, "num_results", value = 10)
+    updateSliderInput(session, "num_results", value = 10)
   })
 }
 

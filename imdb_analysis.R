@@ -3,6 +3,8 @@ gc()
 
 # Load necessary libraries
 library(data.table)
+library(dplyr)
+library(tidyr)
 
 # Set maximum number of threads data.table can use to the maximum available
 setDTthreads(0)
@@ -59,8 +61,12 @@ title_ratings <- read_and_filter(
   filters = c("!is.na(numVotes) & numVotes > 0")
 )
 
-# Merge, filter, and rank the data
-title_basics_ratings <- merge(title_basics, title_ratings, by = "tconst")
+# Merge, filter, and rank the data using dplyr
+title_basics_ratings <- title_basics %>%
+  inner_join(title_ratings, by = "tconst") %>%
+  arrange(desc(averageRating * numVotes), tconst) %>%
+  mutate(rank = row_number())
+
 common_tconst <- unique(title_basics_ratings$tconst)
 
 # Remove unused data frames from memory
@@ -71,74 +77,74 @@ gc()
 title_crew <- read_and_filter(
   files$title_crew,
   "data/title.crew.tsv.gz",
-  c("tconst", "directors"),
+  c("tconst", "directors", "writers"),
   id_filter = common_tconst,
   id_col = "tconst"
 )
 
+# Load name_basics data
 name_basics <- read_and_filter(
   files$name_basics,
   "data/name.basics.tsv.gz",
   c("nconst", "primaryName"),
-  id_filter = unique(unlist(strsplit(title_crew$directors, ","))),
+  id_filter = unique(c(unlist(strsplit(title_crew$directors, ",")), unlist(strsplit(title_crew$writers, ",")))),
   id_col = "nconst"
 )
 
-# Extract directors data
-title_crew_long <- title_crew[, .(tconst, directors = unlist(strsplit(directors, ","))), by = tconst]
-setnames(title_crew_long, "tconst", "crew_tconst")
-directors_name <- merge(title_crew_long, name_basics, by.x = "directors", by.y = "nconst", all.x = TRUE)
-directors_name <- directors_name[, .(tconst = crew_tconst, directors = paste(primaryName, collapse = ", ")), by = crew_tconst]
+# Extract directors and writers data
+title_crew_long <- title_crew %>%
+  separate_rows(directors, sep = ",") %>%
+  separate_rows(writers, sep = ",") 
 
-# Remove title_crew data frame from memory
-rm(title_crew_long)
-gc()
+# Combine directors and writers into one dataframe with appropriate roles
+title_crew_long_directors <- title_crew_long %>%
+  filter(!is.na(directors)) %>%
+  select(tconst, nconst = directors) %>%
+  mutate(role = "directors")
+
+title_crew_long_writers <- title_crew_long %>%
+  filter(!is.na(writers)) %>%
+  select(tconst, nconst = writers) %>%
+  mutate(role = "writers")
+
+title_crew_long_combined <- bind_rows(title_crew_long_directors, title_crew_long_writers)
+
+# Merge with name_basics to get names of directors and writers
+crew_names <- title_crew_long_combined %>%
+  inner_join(name_basics, by = "nconst") %>%
+  group_by(tconst, role) %>%
+  summarise(names = paste(unique(primaryName), collapse = ", "), .groups = 'drop') %>%
+  pivot_wider(names_from = role, values_from = names, values_fill = list(names = NA_character_))
 
 # Ensure unique ranks by using tconst as a secondary criterion
-title_basics_ratings <- title_basics_ratings[order(-averageRating * numVotes, tconst)]
-title_basics_ratings[, rank := .I]
-ranks <- title_basics_ratings[rank <= 5000]
+title_basics_ratings <- title_basics_ratings %>%
+  filter(rank <= 5000) %>%
+  select(tconst, primaryTitle, startYear, rank, averageRating, numVotes, genres) %>%
+  mutate(genres = gsub(",([^ ])", ", \\1", genres))
 
-result <- ranks[order(rank)][, .(tconst, primaryTitle, startYear, rank, averageRating, numVotes, genres)]
-result$genres <- gsub(",([^ ])", ", \\1", result$genres)
-
-# Remove title_basics_ratings data frame from memory
-rm(title_basics_ratings, ranks)
-gc()
-
-# Remove any duplicates and ensure only necessary columns are present
-directors_name <- unique(directors_name[, .(tconst, directors)])
-
-# Merge with the result data frame
-results_by_directors <- merge(result, directors_name, by = "tconst", all.x = TRUE)
+# Merge directors and writers names with the result data frame
+results_with_crew <- title_basics_ratings %>%
+  left_join(crew_names, by = "tconst")
 
 # Create the new Title/IMDb Link column
-results_by_directors$IMDbLink <- paste0(
-  '<a href="https://www.imdb.com/title/',
-  results_by_directors$tconst,
-  '" target="_blank">',
-  results_by_directors$tconst,
-  '</a>'
-)
-
-results_by_directors$Title_IMDb_Link <- paste0(
-  '<a href="https://www.imdb.com/title/',
-  results_by_directors$tconst,
-  '" target="_blank">',
-  results_by_directors$primaryTitle,
-  '</a>'
-)
+results_with_crew <- results_with_crew %>%
+  mutate(
+    IMDbLink = paste0('<a href="https://www.imdb.com/title/', tconst, '" target="_blank">', tconst, '</a>'),
+    Title_IMDb_Link = paste0('<a href="https://www.imdb.com/title/', tconst, '" target="_blank">', primaryTitle, '</a>')
+  )
 
 # Order and select columns
-results_by_directors <- results_by_directors[order(rank)][, .(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, genres, IMDbLink, Title_IMDb_Link)]
+results_with_crew <- results_with_crew %>%
+  arrange(rank) %>%
+  select(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, writers, genres, IMDbLink, Title_IMDb_Link)
 
 # Save results to CSV
 output_dir <- "app/data"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
-write.csv(results_by_directors, file.path(output_dir, "results_by_directors.csv"), row.names = FALSE)
-print(paste("File saved to:", file.path(output_dir, "results_by_directors.csv")))
+write.csv(results_with_crew, file.path(output_dir, "results_with_crew.csv"), row.names = FALSE)
+print(paste("File saved to:", file.path(output_dir, "results_with_crew.csv")))
 
 # Free memory by running garbage collection
 gc()
@@ -153,3 +159,4 @@ minutes <- floor(total_seconds / 60)
 seconds <- total_seconds %% 60
 
 print(paste("Time taken:", minutes, "minutes and", round(seconds, 2), "seconds"))
+
