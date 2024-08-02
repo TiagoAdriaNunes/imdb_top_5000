@@ -28,7 +28,7 @@ source("imdb_analysis.R")
 
 4.  **Run the Shiny app:**
 ```R
-shiny::runApp()
+shiny::runApp("./app/app.r")
 ```
 
 ## Usage
