@@ -21,6 +21,14 @@ cd imdb_top_5000
 ```R
 install.packages(c("R.utils","data.table", "shiny", "shinydashboard", "dplyr", "shinyWidgets", "reactable", "tidyr", "plotly", "shinycssloaders"))
 ```
+Or Alternatively using Renv:
+```R
+install.packages("renv")
+```
+In the terminal after clonning the repository to install all packages and restore the project:
+```R
+renv::restore()
+```
 3. **To perform the analysis, run the** `imdb_analysis.R` **script:**
 ```R
 source("imdb_analysis.R")
