@@ -64,7 +64,7 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 07/22/2024"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 2024-09-23"), tabName = "dashboard", icon = icon("dashboard")),
       fluidRow(
         column(
           width = 12,
