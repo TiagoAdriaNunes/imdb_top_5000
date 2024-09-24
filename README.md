@@ -1,4 +1,4 @@
-# IMDb Data Dashboard
+# IMDb Data Dashboard - Movies
 
 This GitHub repository contains the code for a Shiny dashboard written in R that allows users to explore IMDb data, specifically the top 5000 movies. The dashboard provides various filters to help users search for movies based on title, director, writer, genre, year, rank, average rating, and number of votes. Check the dashboard: [https://tiagoadrianunes.shinyapps.io/IMDB_TOP_5000/](https://tiagoadrianunes.shinyapps.io/IMDB_TOP_5000/)
 
