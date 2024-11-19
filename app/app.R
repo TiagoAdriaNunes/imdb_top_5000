@@ -1,3 +1,4 @@
+library(profvis)
 library(shiny)
 library(shinydashboard)
 library(dplyr)
@@ -6,19 +7,17 @@ library(reactable)
 library(tidyr)
 library(plotly)
 library(shinycssloaders)
+library(duckdb)
 
-# Load the data
-data <- tryCatch({
-  read.csv("data/results_with_crew.csv", stringsAsFactors = FALSE)
-}, error = function(e) {
-  message("Error loading data: ", e)
-  NULL
-})
+# Connect to DuckDB
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
-# Ensure data is loaded
-if (is.null(data)) {
-  stop("Failed to load data.")
-}
+# Load the data into DuckDB
+
+dbExecute(con, "CREATE TABLE IF NOT EXISTS results_with_crew AS SELECT * FROM 'data/results_with_crew.csv'")
+
+# Exemplo de consulta SQL
+data <- dbGetQuery(con, "SELECT * FROM results_with_crew")
 
 # Verify the columns in the loaded data
 required_columns <- c("primaryTitle", "startYear", "rank", "averageRating", "numVotes", "directors", "writers", "genres", "Title_IMDb_Link")
@@ -64,7 +63,7 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 2024-09-23"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 2024-11-19"), tabName = "dashboard", icon = icon("dashboard")),
       fluidRow(
         column(
           width = 12,
