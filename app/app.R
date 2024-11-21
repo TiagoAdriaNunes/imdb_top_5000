@@ -63,7 +63,7 @@ ui <- dashboardPage(
       "))
     ),
     sidebarMenu(
-      menuItem(HTML("Top 5000 Movies<br>Last Update: 2024-11-19"), tabName = "dashboard", icon = icon("dashboard")),
+      menuItem(HTML("Top 5000 Movies<br>Last Update: 2024-11-21"), tabName = "dashboard", icon = icon("dashboard")),
       fluidRow(
         column(
           width = 12,
@@ -148,7 +148,7 @@ ui <- dashboardPage(
       sliderInput("num_results", "Number of Rows to Display in Graph", 
                   min = 1, max = 20, value = 10),
       div(class = "reset-button-container", 
-          actionButton("reset", "Reset Sliders", icon = icon("redo")))
+          actionButton("reset", "Reset filters", icon = icon("redo")))
     )
   ),
   dashboardBody(
@@ -244,7 +244,7 @@ server <- function(input, output, session) {
                 startYear = colDef(name = "Year", minWidth = 50),
                 rank = colDef(name = "Rank", minWidth = 50),
                 averageRating = colDef(name = "Average Rating", minWidth = 70),
-                numVotes = colDef(name = "Number of Votes", minWidth = 80),
+                numVotes = colDef(name = "Number of Votes", minWidth = 80, format = colFormat(separators = TRUE, digits = 0)),
                 directors = colDef(name = "Directors", minWidth = 150),
                 writers = colDef(name = "Writers", minWidth = 200),
                 genres = colDef(name = "Genres", minWidth = 180)
@@ -316,11 +316,15 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$reset, {
-    updateSliderInput(session, "year", value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE)))
-    updateSliderInput(session, "rank", value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)))
-    updateSliderInput(session, "rating", value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE)))
-    updateSliderInput(session, "votes", value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
-    updateSliderInput(session, "num_results", value = 10)
+    updateSliderInput(session = session, "year", value = c(min(data$startYear, na.rm = TRUE), max(data$startYear, na.rm = TRUE)))
+    updateSliderInput(session = session, "rank", value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE)))
+    updateSliderInput(session = session, "rating", value = c(min(data$averageRating, na.rm = TRUE), max(data$averageRating, na.rm = TRUE)))
+    updateSliderInput(session = session, "votes", value = c(min(data$numVotes, na.rm = TRUE), max(data$numVotes, na.rm = TRUE)))
+    updateSliderInput(session = session, "num_results", value = 10)
+    updateVirtualSelect(session = session, "primaryTitle", selected = character(0))
+    updateVirtualSelect(session = session, "director", selected = character(0))
+    updateVirtualSelect(session = session, "writer", selected = character(0))
+    updateVirtualSelect(session = session, "genre", selected = character(0))
   })
 }
 
