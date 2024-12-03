@@ -19,10 +19,6 @@ cd imdb_top_5000
 ```
 2.  **Install the required packages:**
 ```R
-install.packages(c("R.utils","data.table", "shiny", "shinydashboard", "dplyr", "shinyWidgets", "reactable", "tidyr", "plotly", "shinycssloaders"))
-```
-Or Alternatively using Renv:
-```R
 install.packages("renv")
 ```
 In the terminal after clonning the repository to install all packages and restore the project:
