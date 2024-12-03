@@ -16,6 +16,13 @@ start_time <- Sys.time()
 data_dir <- "data"
 if (!dir.exists(data_dir)) {
   dir.create(data_dir)
+} else {
+  # Clean up existing .gz files
+  gz_files <- list.files(data_dir, pattern = "\\.gz$", full.names = TRUE)
+  if (length(gz_files) > 0) {
+    file.remove(gz_files)
+    print(paste("Removed", length(gz_files), "existing .gz files"))
+  }
 }
 
 # Define file paths and URLs in a list - https://developer.imdb.com/non-commercial-datasets/
