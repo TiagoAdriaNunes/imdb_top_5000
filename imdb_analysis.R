@@ -46,7 +46,7 @@ read_and_filter <- function(url, path, select_cols, na.strings = "\\N", filters 
   
   if (!is.null(filters)) {
     for (filter in filters) {
-      dt <- dt[eval(parse(text=filter))]  
+      dt <- dt[eval(parse(text=filter))]
     }
   }
   

@@ -94,7 +94,7 @@ ui <- dashboardPage(
     )),
     sidebarMenu(
       menuItem(
-        HTML("Top 5000 Movies<br>Last Update: 2024-11-29"),
+        HTML("Top 5000 Movies<br>Last Update: 2025-01-20/"),
         tabName = "dashboard",
         icon = icon("dashboard")
       ),
@@ -199,7 +199,7 @@ ui <- dashboardPage(
       ),
       sliderInput(
         "num_results",
-        "Number of Rows to Display in Graph",
+        "Number of results to Display in Charts",
         min = 1,
         max = 20,
         value = 10
