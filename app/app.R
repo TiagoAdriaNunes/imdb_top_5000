@@ -94,7 +94,7 @@ ui <- dashboardPage(
     )),
     sidebarMenu(
       menuItem(
-        HTML("Top 5000 Movies<br>Last Update: 2025-01-20/"),
+        HTML("Top 5000 Movies<br>Last Update: 2025-02-24"),
         tabName = "dashboard",
         icon = icon("dashboard")
       ),

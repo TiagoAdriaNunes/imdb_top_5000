@@ -2,12 +2,12 @@
 gc()
 
 # Load necessary libraries
-library(data.table)
-library(dplyr)
+library(duckdb)
+library(duckplyr)
 library(tidyr)
 
-# Set maximum number of threads data.table can use to the maximum available
-setDTthreads(0)
+# Initialize DuckDB connection
+con <- dbConnect(duckdb())
 
 # Start time measurement
 start_time <- Sys.time()
@@ -17,11 +17,22 @@ data_dir <- "data"
 if (!dir.exists(data_dir)) {
   dir.create(data_dir)
 } else {
-  # Clean up existing .gz files
+  # Get current date
+  today <- Sys.Date()
+  
+  # Clean up existing .gz files that are not from today
   gz_files <- list.files(data_dir, pattern = "\\.gz$", full.names = TRUE)
   if (length(gz_files) > 0) {
-    file.remove(gz_files)
-    print(paste("Removed", length(gz_files), "existing .gz files"))
+    # Get file modification dates
+    file_dates <- as.Date(file.info(gz_files)$mtime)
+    
+    # Find files that are not from today
+    old_files <- gz_files[file_dates != today]
+    
+    if (length(old_files) > 0) {
+      file.remove(old_files)
+      print(paste("Removed", length(old_files), "outdated .gz files"))
+    }
   }
 }
 
@@ -35,73 +46,107 @@ files <- list(
 
 # Function to download and read files with conditions
 read_and_filter <- function(url, path, select_cols, na.strings = "\\N", filters = NULL, id_filter = NULL, id_col = "tconst") {
+  # Download file if it doesn't exist
   if (!file.exists(path)) {
-    download.file(url, path, mode = "wb")
+    tryCatch({
+      download.file(url, path, mode = "wb")
+    }, error = function(e) {
+      stop(paste("Failed to download file:", e$message))
+    })
   }
-  dt <- fread(path, select = select_cols, na.strings = na.strings, quote = "", showProgress = TRUE, nThread = setDTthreads(0))
   
-  if (!is.null(id_filter)) {
-    dt <- dt[get(id_col) %in% id_filter]
-  }
+  # Safely create SQL for column selection
+  cols_sql <- paste(dbQuoteIdentifier(con, select_cols), collapse = ", ")
   
-  if (!is.null(filters)) {
-    for (filter in filters) {
-      dt <- dt[eval(parse(text=filter))]
+  # Create and execute query with proper error handling
+  tryCatch({
+    query <- sprintf(
+      "SELECT %s FROM read_csv_auto('%s', delim='\t', nullstr='\\N', ignore_errors=true, sample_size=-1)",
+      cols_sql,
+      path
+    )
+    dt <- tbl(con, sql(query))
+    
+    # Apply filters
+    if (!is.null(id_filter)) {
+      dt <- dt %>% filter(!!sym(id_col) %in% id_filter)
     }
-  }
-  
-  return(dt)
+    
+    if (!is.null(filters)) {
+      for (filter in filters) {
+        dt <- dt %>% filter(eval(parse(text=filter)))
+      }
+    }
+    
+    return(dt)
+  }, error = function(e) {
+    stop(paste("Failed to process file:", e$message))
+  })
 }
 
-# Load and filter datasets
+# Load and filter initial datasets first
 title_basics <- read_and_filter(
   files$title_basics,
   "data/title.basics.tsv.gz",
-  c("tconst", "titleType", "primaryTitle", "startYear", "runtimeMinutes", "genres"),
-  filters = c("!(runtimeMinutes == '0' | is.na(runtimeMinutes))", "(titleType == 'movie' | titleType == 'tvMovie')")
-)
+  c("tconst", "titleType", "primaryTitle", "startYear", "runtimeMinutes", "genres")
+) %>%
+  filter(
+    !is.na(runtimeMinutes),
+    runtimeMinutes != '0',
+    titleType %in% c('movie', 'tvMovie')
+  )
 
 title_ratings <- read_and_filter(
   files$title_ratings,
   "data/title.ratings.tsv.gz",
-  c("tconst", "averageRating", "numVotes"),
-  filters = c("!is.na(numVotes) & numVotes > 0")
-)
+  c("tconst", "averageRating", "numVotes")
+) %>%
+  filter(!is.na(numVotes), numVotes > 0)
 
-# Merge, filter, and rank the data using dplyr
+# Create title_basics_ratings first and get the filtered tconst list
 title_basics_ratings <- title_basics %>%
   inner_join(title_ratings, by = "tconst") %>%
-  arrange(desc(averageRating * numVotes), tconst) %>%
-  mutate(rank = row_number())
+  mutate(score = averageRating * numVotes) %>%
+  arrange(desc(score), tconst) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= 5000) %>%  # Apply rank filter earlier
+  compute()  # Create temporary table in DuckDB
 
-common_tconst <- unique(title_basics_ratings$tconst)
+# Get the filtered tconst list
+common_tconst <- title_basics_ratings %>%
+  select(tconst) %>%
+  collect() %>%
+  pull(tconst)
 
-# Remove unused data frames from memory
-rm(title_basics, title_ratings)
-gc()
-
-# Continue processing other files with the list of common tconsts
+# Now load other files using the filtered tconst list
 title_crew <- read_and_filter(
   files$title_crew,
   "data/title.crew.tsv.gz",
   c("tconst", "directors", "writers"),
-  id_filter = common_tconst,
-  id_col = "tconst"
-)
+  id_filter = common_tconst
+) %>%
+  collect()
 
-# Load name_basics data
+# Get crew IDs only from the filtered movies
+crew_ids <- unique(c(
+  unlist(strsplit(title_crew$directors, ",")),
+  unlist(strsplit(title_crew$writers, ","))
+))
+
+# Load name_basics with only relevant crew members
 name_basics <- read_and_filter(
   files$name_basics,
   "data/name.basics.tsv.gz",
   c("nconst", "primaryName"),
-  id_filter = unique(c(unlist(strsplit(title_crew$directors, ",")), unlist(strsplit(title_crew$writers, ",")))),
-  id_col = "nconst"
-)
+  id_col = "nconst",
+  id_filter = crew_ids
+) %>%
+  collect()
 
 # Extract directors and writers data
 title_crew_long <- title_crew %>%
   separate_rows(directors, sep = ",") %>%
-  separate_rows(writers, sep = ",") 
+  separate_rows(writers, sep = ",")
 
 # Combine directors and writers into one dataframe with appropriate roles
 title_crew_long_directors <- title_crew_long %>%
@@ -116,18 +161,23 @@ title_crew_long_writers <- title_crew_long %>%
 
 title_crew_long_combined <- bind_rows(title_crew_long_directors, title_crew_long_writers)
 
-# Merge with name_basics to get names of directors and writers
-crew_names <- title_crew_long_combined %>%
-  inner_join(name_basics, by = "nconst") %>%
-  group_by(tconst, role) %>%
-  summarise(names = paste(unique(primaryName), collapse = ", "), .groups = 'drop') %>%
-  pivot_wider(names_from = role, values_from = names, values_fill = list(names = NA_character_))
-
 # Ensure unique ranks by using tconst as a secondary criterion
 title_basics_ratings <- title_basics_ratings %>%
-  filter(rank <= 5000) %>%
   select(tconst, primaryTitle, startYear, rank, averageRating, numVotes, genres) %>%
-  mutate(genres = gsub(",([^ ])", ", \\1", genres))
+  collect() %>%  # Materialize the data first
+  mutate(genres = gsub(",([^ ])", ", \\1", genres))  # Format genres after collecting
+
+# Merge with name_basics to get names of directors and writers
+crew_names <- title_crew_long_combined %>%
+  left_join(name_basics, by = "nconst") %>%  # Changed from inner_join to left_join
+  mutate(primaryName = ifelse(is.na(primaryName), "Unknown", primaryName)) %>%  # Handle missing names
+  group_by(tconst, role) %>%
+  summarise(names = paste(unique(primaryName), collapse = ", "), .groups = 'drop') %>%
+  pivot_wider(
+    names_from = role,
+    values_from = names,
+    values_fill = list(names = NA_character_)
+  )
 
 # Merge directors and writers names with the result data frame
 results_with_crew <- title_basics_ratings %>%
@@ -166,3 +216,6 @@ minutes <- floor(total_seconds / 60)
 seconds <- total_seconds %% 60
 
 print(paste("Time taken:", minutes, "minutes and", round(seconds, 2), "seconds"))
+
+# Close DuckDB connection at the end
+dbDisconnect(con, shutdown = TRUE)
