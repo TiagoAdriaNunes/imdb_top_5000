@@ -28,7 +28,7 @@ jobs:
       
       - name: Install R packages
         run: |
-          Rscript -e 'install.packages(c("duckdb", "duckplyr", "tidyr", "DBI", "dplyr"), repos="https://cloud.r-project.org", dependencies=TRUE)'
+          Rscript -e 'install.packages(c("duckdb", "duckplyr", "tidyr"), repos="https://cloud.r-project.org", dependencies=TRUE)'
         timeout-minutes: 15
       
       - name: Run IMDb analysis script
