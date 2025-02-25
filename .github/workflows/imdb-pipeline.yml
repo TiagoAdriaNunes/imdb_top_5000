@@ -28,9 +28,37 @@ jobs:
       
       - name: Install R packages
         run: |
+          # Try to install from binary packages when possible
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
           packages <- c("duckdb", "duckplyr", "tidyr")
-          new_packages <- packages[!packages %in% installed.packages()[,"Package"]]
-          if(length(new_packages)) install.packages(new_packages, repos="https://cloud.r-project.org")
+          
+          # First try with regular installation
+          install_result <- tryCatch({
+            install.packages(packages, quiet = TRUE, Ncpus = 2)
+            TRUE
+          }, error = function(e) {
+            message("Regular installation failed, will try one by one")
+            FALSE
+          })
+          
+          # If bulk installation fails, try one by one
+          if (!install_result) {
+            for (pkg in packages) {
+              message(paste("Installing", pkg))
+              tryCatch({
+                install.packages(pkg, quiet = TRUE)
+              }, error = function(e) {
+                message(paste("Failed to install", pkg, ":", e$message))
+              })
+            }
+          }
+          
+          # Verify installations
+          installed <- packages %in% installed.packages()[,"Package"]
+          if (!all(installed)) {
+            missing <- packages[!installed]
+            stop(paste("Failed to install:", paste(missing, collapse=", ")))
+          }
         shell: Rscript {0}
         timeout-minutes: 30
       
