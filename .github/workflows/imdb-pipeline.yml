@@ -33,14 +33,24 @@ jobs:
 
       - name: Setup R dependencies
         uses: r-lib/actions/setup-renv@v2
+        with:
+          cache-version: 1
       
-      - name: Run IMDb analysis script
+      - name: Install additional packages
         run: |
-          Rscript imdb_analysis_duckdb_version.R
-        timeout-minutes: 20
+          R -e 'if(!requireNamespace("duckdb", quietly = TRUE)) install.packages("duckdb")'
+          R -e 'if(!requireNamespace("duckplyr", quietly = TRUE)) install.packages("duckplyr")'
+          R -e 'if(!requireNamespace("tidyr", quietly = TRUE)) install.packages("tidyr")'
+          R -e 'renv::status()'
+      
+      - name: Run IMDb analysis script with debugging
+        run: |
+          Rscript -e "options(error = function() { traceback(2); quit(status = 1) })" imdb_analysis_duckdb_version.R
+        timeout-minutes: 15
       
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
         with:
           name: imdb-results
           path: app/data/results_with_crew.csv
+        if: always()
