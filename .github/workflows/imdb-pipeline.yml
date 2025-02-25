@@ -27,7 +27,7 @@ jobs:
           Rscript imdb_analysis_duckdb_version.R
       
       - name: Upload results artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: imdb-results
           path: app/data/results_with_crew.csv
