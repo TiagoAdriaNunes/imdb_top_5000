@@ -62,6 +62,6 @@ jobs:
         run: |
           git config --local user.email "tiagoadrianunes@gmail.com"
           git config --local user.name "TiagoAdriaNunes"
-          git add app/data/results_with_crew.csv
+          git add -f app/data/results_with_crew.csv
           git commit -m "Update IMDb analysis results [skip ci]" || echo "No changes to commit"
           git push
