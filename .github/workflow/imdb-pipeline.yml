@@ -1,0 +1,33 @@
+name: IMDb Pipeline
+
+on:
+
+  schedule:
+    - cron: "30 0 * * *"
+
+  workflow_dispatch:
+
+jobs:
+  run-imdb-script:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+      
+      - name: Install R packages
+        run: |
+          Rscript -e 'install.packages(c("duckdb", "duckplyr", "tidyr"), repos="https://cloud.r-project.org")'
+      
+      - name: Run IMDb analysis script
+        run: |
+          Rscript imdb_analysis_duckdb_version.R
+      
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: imdb-results
+          path: app/data/results_with_crew.csv
