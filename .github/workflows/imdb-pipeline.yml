@@ -1,71 +1,43 @@
 name: IMDb Pipeline
 
 on:
-
   schedule:
     - cron: "30 0 * * *"
 
   workflow_dispatch:
 
 jobs:
-  run-imdb-script:
-    runs-on: ubuntu-latest
+  main:
+    name: Run IMDb analysis
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup system dependencies
+        run: |
+          packages=(
+            libcurl4-openssl-dev
+            libssl-dev
+            libxml2-dev
+          )
+          sudo apt-get update
+          sudo apt-get install --yes "${packages[@]}"
+
       - name: Setup R
         uses: r-lib/actions/setup-r@v2
         with:
-          r-version: 'release'
-      
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
-      
-      - name: Install R packages
-        run: |
-          # Try to install from binary packages when possible
-          options(repos = c(CRAN = "https://cloud.r-project.org"))
-          packages <- c("duckdb", "duckplyr", "tidyr")
-          
-          # First try with regular installation
-          install_result <- tryCatch({
-            install.packages(packages, quiet = TRUE, Ncpus = 2)
-            TRUE
-          }, error = function(e) {
-            message("Regular installation failed, will try one by one")
-            FALSE
-          })
-          
-          # If bulk installation fails, try one by one
-          if (!install_result) {
-            for (pkg in packages) {
-              message(paste("Installing", pkg))
-              tryCatch({
-                install.packages(pkg, quiet = TRUE)
-              }, error = function(e) {
-                message(paste("Failed to install", pkg, ":", e$message))
-              })
-            }
-          }
-          
-          # Verify installations
-          installed <- packages %in% installed.packages()[,"Package"]
-          if (!all(installed)) {
-            missing <- packages[!installed]
-            stop(paste("Failed to install:", paste(missing, collapse=", ")))
-          }
-        shell: Rscript {0}
-        timeout-minutes: 30
+          r-version: renv
+
+      - name: Setup R dependencies
+        uses: r-lib/actions/setup-renv@v2
       
       - name: Run IMDb analysis script
         run: |
           Rscript imdb_analysis_duckdb_version.R
-        timeout-minutes: 15
+        timeout-minutes: 20
       
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
