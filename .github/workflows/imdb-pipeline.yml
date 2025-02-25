@@ -11,6 +11,8 @@ jobs:
     name: Run IMDb analysis
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout repo
@@ -54,3 +56,12 @@ jobs:
           name: imdb-results
           path: app/data/results_with_crew.csv
         if: always()
+
+      - name: Commit results to repository
+        if: success()
+        run: |
+          git config --local user.email "tiagoadrianunes@gmail.com"
+          git config --local user.name "TiagoAdriaNunes"
+          git add app/data/results_with_crew.csv
+          git commit -m "Update IMDb analysis results [skip ci]" || echo "No changes to commit"
+          git push
