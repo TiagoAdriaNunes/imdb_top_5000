@@ -56,17 +56,9 @@ jobs:
           rm -rf data/*.gz || true
           rm -f app/data/results_with_crew.csv || true
       
-      - name: Run IMDb analysis script with debugging
+      - name: Run IMDb analysis script
         run: |
-          Rscript -e "
-            options(error = function() {
-              print(paste('Current working directory:', getwd()))
-              print('Directory contents:')
-              print(list.files(recursive = TRUE))
-              traceback(2)
-              quit(status = 1)
-            })
-          " imdb_analysis_duckdb_version.R 2>&1 | tee r_script.log  # Capture output
+          Rscript imdb_analysis_duckdb_version.R
         timeout-minutes: 15
 
       - name: Debug directory contents
