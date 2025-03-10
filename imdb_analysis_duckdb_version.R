@@ -197,28 +197,36 @@ results_with_crew <- results_with_crew %>%
 # Save results to CSV
 output_dir <- "app/data"
 print(paste("Current working directory:", getwd()))
-print(paste("Creating output directory:", output_dir))
 
 if (!dir.exists(output_dir)) {
+  print(paste("Creating directory:", output_dir))
   dir.create(output_dir, recursive = TRUE)
-  print(paste("Created directory:", output_dir))
 }
 
-print("Contents of current directory:")
+print("Directory structure before saving:")
 print(list.files(recursive = TRUE))
 
 csv_path <- file.path(output_dir, "results_with_crew.csv")
-print(paste("Attempting to write CSV to:", csv_path))
+print(paste("Saving results to:", csv_path))
 
-write.csv(results_with_crew, csv_path, row.names = FALSE)
-print(paste("File saved to:", csv_path))
+# Verify we have data to save
+print(paste("Number of rows in results_with_crew:", nrow(results_with_crew)))
+print(paste("Number of columns in results_with_crew:", ncol(results_with_crew)))
 
-# Verify file was created
-if (file.exists(csv_path)) {
-  print(paste("File successfully created with size:", file.size(csv_path), "bytes"))
-} else {
-  stop("Failed to create CSV file")
-}
+# Save with error handling
+tryCatch({
+  write.csv(results_with_crew, csv_path, row.names = FALSE)
+  if (file.exists(csv_path)) {
+    print(paste("File successfully created with size:", file.size(csv_path), "bytes"))
+  } else {
+    stop("File was not created successfully")
+  }
+}, error = function(e) {
+  print(paste("Error saving file:", e$message))
+  print("Current directory contents:")
+  print(list.files(recursive = TRUE))
+  stop(e)
+})
 
 # Free memory by running garbage collection
 gc()

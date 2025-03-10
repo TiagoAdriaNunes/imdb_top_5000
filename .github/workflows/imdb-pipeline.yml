@@ -49,6 +49,7 @@ jobs:
         run: |
           mkdir -p data
           mkdir -p app/data
+          ls -la  # Debug: list directories
         
       - name: Clean previous data
         run: |
@@ -59,20 +60,29 @@ jobs:
         run: |
           Rscript -e "
             options(error = function() {
+              print(paste('Current working directory:', getwd()))
+              print('Directory contents:')
+              print(list.files(recursive = TRUE))
               traceback(2)
-              message('Error occurred. Current working directory:', getwd())
-              message('Contents of current directory:', list.files(recursive = TRUE))
               quit(status = 1)
             })
-          " imdb_analysis_duckdb_version.R
+          " imdb_analysis_duckdb_version.R 2>&1 | tee r_script.log  # Capture output
         timeout-minutes: 15
-      
+
+      - name: Debug directory contents
+        if: always()
+        run: |
+          echo "Current directory structure:"
+          ls -R
+          echo "Content of app/data directory (if exists):"
+          ls -la app/data || echo "app/data directory not found"
+          
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
         with:
           name: imdb-results
           path: app/data/results_with_crew.csv
-        if: always()
+          if-no-files-found: error  # Falhar explicitamente se o arquivo não existir
 
       - name: Configure Git
         run: |
@@ -84,7 +94,12 @@ jobs:
       - name: Commit and push changes
         if: success()
         run: |
-          git pull origin ${{ github.ref }} --no-rebase
-          git add -f app/data/results_with_crew.csv
-          git diff --staged --quiet || git commit -m "Update IMDb analysis results [skip ci]"
-          git push origin HEAD:${{ github.ref }}
+          if [ -f "app/data/results_with_crew.csv" ]; then
+            git pull origin ${{ github.ref }} --no-rebase
+            git add -f app/data/results_with_crew.csv
+            git diff --staged --quiet || git commit -m "Update IMDb analysis results [skip ci]"
+            git push origin HEAD:${{ github.ref }}
+          else
+            echo "Error: results_with_crew.csv file not found"
+            exit 1
+          fi
