@@ -46,37 +46,42 @@ files <- list(
 
 # Function to download and read files with conditions
 read_and_filter <- function(url, path, select_cols, na.strings = "\\N", filters = NULL, id_filter = NULL, id_col = "tconst") {
-  # Download file
-  message(paste("Downloading file from:", url))
-  download.file(url, path, mode = "wb")
-  message(paste("Download complete. File size:", file.size(path), "bytes"))
+  # Download file if it doesn't exist
+  if (!file.exists(path)) {
+    tryCatch({
+      download.file(url, path, mode = "wb")
+    }, error = function(e) {
+      stop(paste("Failed to download file:", e$message))
+    })
+  }
   
   # Safely create SQL for column selection
   cols_sql <- paste(dbQuoteIdentifier(con, select_cols), collapse = ", ")
   
-  # Create query
-  query <- sprintf(
-    "SELECT %s FROM read_csv_auto('%s', delim='\t', nullstr='\\N', ignore_errors=true, sample_size=-1)",
-    cols_sql,
-    path
-  )
-  message(paste("Executing query:", query))
-  
-  # Execute query
-  dt <- tbl(con, sql(query))
-  
-  # Apply filters
-  if (!is.null(id_filter)) {
-    dt <- dt %>% filter(!!sym(id_col) %in% id_filter)
-  }
-  
-  if (!is.null(filters)) {
-    for (filter in filters) {
-      dt <- dt %>% filter(eval(parse(text=filter)))
+  # Create and execute query with proper error handling
+  tryCatch({
+    query <- sprintf(
+      "SELECT %s FROM read_csv_auto('%s', delim='\t', nullstr='\\N', ignore_errors=true, sample_size=-1)",
+      cols_sql,
+      path
+    )
+    dt <- tbl(con, sql(query))
+    
+    # Apply filters
+    if (!is.null(id_filter)) {
+      dt <- dt %>% filter(!!sym(id_col) %in% id_filter)
     }
-  }
-  
-  return(dt)
+    
+    if (!is.null(filters)) {
+      for (filter in filters) {
+        dt <- dt %>% filter(eval(parse(text=filter)))
+      }
+    }
+    
+    return(dt)
+  }, error = function(e) {
+    stop(paste("Failed to process file:", e$message))
+  })
 }
 
 # Load and filter initial datasets first
@@ -192,37 +197,11 @@ results_with_crew <- results_with_crew %>%
 
 # Save results to CSV
 output_dir <- "app/data"
-print(paste("Current working directory:", getwd()))
-
 if (!dir.exists(output_dir)) {
-  print(paste("Creating directory:", output_dir))
   dir.create(output_dir, recursive = TRUE)
 }
-
-print("Directory structure before saving:")
-print(list.files(recursive = TRUE))
-
-csv_path <- file.path(output_dir, "results_with_crew.csv")
-print(paste("Saving results to:", csv_path))
-
-# Verify we have data to save
-print(paste("Number of rows in results_with_crew:", nrow(results_with_crew)))
-print(paste("Number of columns in results_with_crew:", ncol(results_with_crew)))
-
-# Save with error handling
-tryCatch({
-  write.csv(results_with_crew, csv_path, row.names = FALSE)
-  if (file.exists(csv_path)) {
-    print(paste("File successfully created with size:", file.size(csv_path), "bytes"))
-  } else {
-    stop("File was not created successfully")
-  }
-}, error = function(e) {
-  print(paste("Error saving file:", e$message))
-  print("Current directory contents:")
-  print(list.files(recursive = TRUE))
-  stop(e)
-})
+write.csv(results_with_crew, file.path(output_dir, "results_with_crew.csv"), row.names = FALSE)
+print(paste("File saved to:", file.path(output_dir, "results_with_crew.csv")))
 
 # Free memory by running garbage collection
 gc()
