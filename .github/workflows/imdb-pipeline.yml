@@ -57,11 +57,15 @@ jobs:
           path: app/data/results_with_crew.csv
         if: always()
 
-      - name: Commit results to repository
+      - name: Configure Git
+        run: |
+          git config --global user.email "tiagoadrianunes@gmail.com"
+          git config --global user.name "TiagoAdriaNunes"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+      - name: Commit and push changes
         if: success()
         run: |
-          git config --local user.email "tiagoadrianunes@gmail.com"
-          git config --local user.name "TiagoAdriaNunes"
           git add -f app/data/results_with_crew.csv
-          git commit -m "Update IMDb analysis results [skip ci]" || echo "No changes to commit"
-          git push
+          git diff --staged --quiet || git commit -m "Update IMDb analysis results [skip ci]"
+          git push origin HEAD:${{ github.ref }}
