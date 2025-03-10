@@ -196,11 +196,29 @@ results_with_crew <- results_with_crew %>%
 
 # Save results to CSV
 output_dir <- "app/data"
+print(paste("Current working directory:", getwd()))
+print(paste("Creating output directory:", output_dir))
+
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
+  print(paste("Created directory:", output_dir))
 }
-write.csv(results_with_crew, file.path(output_dir, "results_with_crew.csv"), row.names = FALSE)
-print(paste("File saved to:", file.path(output_dir, "results_with_crew.csv")))
+
+print("Contents of current directory:")
+print(list.files(recursive = TRUE))
+
+csv_path <- file.path(output_dir, "results_with_crew.csv")
+print(paste("Attempting to write CSV to:", csv_path))
+
+write.csv(results_with_crew, csv_path, row.names = FALSE)
+print(paste("File saved to:", csv_path))
+
+# Verify file was created
+if (file.exists(csv_path)) {
+  print(paste("File successfully created with size:", file.size(csv_path), "bytes"))
+} else {
+  stop("Failed to create CSV file")
+}
 
 # Free memory by running garbage collection
 gc()

@@ -45,14 +45,26 @@ jobs:
           R -e 'if(!requireNamespace("tidyr", quietly = TRUE)) install.packages("tidyr")'
           R -e 'renv::status()'
       
+      - name: Create necessary directories
+        run: |
+          mkdir -p data
+          mkdir -p app/data
+        
       - name: Clean previous data
         run: |
-          rm -rf data/*.gz
-          rm -rf app/data/results_with_crew.csv
+          rm -rf data/*.gz || true
+          rm -f app/data/results_with_crew.csv || true
       
       - name: Run IMDb analysis script with debugging
         run: |
-          Rscript -e "options(error = function() { traceback(2); quit(status = 1) })" imdb_analysis_duckdb_version.R
+          Rscript -e "
+            options(error = function() {
+              traceback(2)
+              message('Error occurred. Current working directory:', getwd())
+              message('Contents of current directory:', list.files(recursive = TRUE))
+              quit(status = 1)
+            })
+          " imdb_analysis_duckdb_version.R
         timeout-minutes: 15
       
       - name: Upload results artifact
@@ -66,11 +78,13 @@ jobs:
         run: |
           git config --global user.email "tiagoadrianunes@gmail.com"
           git config --global user.name "TiagoAdriaNunes"
+          git config --global pull.rebase false
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
 
       - name: Commit and push changes
         if: success()
         run: |
+          git pull origin ${{ github.ref }} --no-rebase
           git add -f app/data/results_with_crew.csv
           git diff --staged --quiet || git commit -m "Update IMDb analysis results [skip ci]"
           git push origin HEAD:${{ github.ref }}
