@@ -43,6 +43,7 @@ jobs:
           R -e 'if(!requireNamespace("duckdb", quietly = TRUE)) install.packages("duckdb")'
           R -e 'if(!requireNamespace("duckplyr", quietly = TRUE)) install.packages("duckplyr")'
           R -e 'if(!requireNamespace("tidyr", quietly = TRUE)) install.packages("tidyr")'
+          R -e 'if(!requireNamespace("dbplyr", quietly = TRUE)) install.packages("dbplyr")'
           R -e 'renv::status()'
       
       - name: Create necessary directories

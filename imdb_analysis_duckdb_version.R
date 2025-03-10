@@ -5,6 +5,7 @@ gc()
 library(duckdb)
 library(duckplyr)
 library(tidyr)
+library(dbplyr)
 
 # Initialize DuckDB connection
 con <- dbConnect(duckdb())
