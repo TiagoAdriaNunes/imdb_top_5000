@@ -11,8 +11,24 @@ library(duckdb)
 # Connect to DuckDB
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
-# Load the data into DuckDB
+# Remove existing file if it exists
+results_file <- "data/results_with_crew.csv"
+if (file.exists(results_file)) {
+  file.remove(results_file)
+  print(paste("Removed existing file:", results_file))
+}
 
+# Download the file from GitHub
+github_url <- "https://raw.githubusercontent.com/TiagoAdriaNunes/imdb_top_5000/main/app/data/results_with_crew.csv"
+dir.create(dirname(results_file), showWarnings = FALSE, recursive = TRUE)
+download.file(github_url, results_file, mode = "wb")
+print(paste("File downloaded from GitHub to:", results_file))
+
+# Get file creation/modification date for Last Update display
+file_date <- format(file.mtime(results_file), "%Y-%m-%d")
+print(paste("File last modified on:", file_date))
+
+# Load the data into DuckDB
 dbExecute(
   con,
   "CREATE TABLE IF NOT EXISTS results_with_crew
@@ -94,7 +110,7 @@ ui <- dashboardPage(
     )),
     sidebarMenu(
       menuItem(
-        HTML("Top 5000 Movies<br>Last Update: 2025-02-25"),
+        HTML(paste0("Top 5000 Movies<br>Last Update: ", file_date)),
         tabName = "dashboard",
         icon = icon("dashboard")
       ),
