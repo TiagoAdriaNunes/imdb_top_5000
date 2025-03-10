@@ -46,14 +46,13 @@ files <- list(
 
 # Function to download and read files with conditions
 read_and_filter <- function(url, path, select_cols, na.strings = "\\N", filters = NULL, id_filter = NULL, id_col = "tconst") {
-  # Download file if it doesn't exist
-  if (!file.exists(path)) {
-    tryCatch({
-      download.file(url, path, mode = "wb")
-    }, error = function(e) {
-      stop(paste("Failed to download file:", e$message))
-    })
-  }
+  # Always download new file
+  tryCatch({
+    message(paste("Downloading file from:", url))
+    download.file(url, path, mode = "wb")
+  }, error = function(e) {
+    stop(paste("Failed to download file:", e$message))
+  })
   
   # Safely create SQL for column selection
   cols_sql <- paste(dbQuoteIdentifier(con, select_cols), collapse = ", ")

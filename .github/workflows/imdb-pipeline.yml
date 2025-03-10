@@ -45,6 +45,11 @@ jobs:
           R -e 'if(!requireNamespace("tidyr", quietly = TRUE)) install.packages("tidyr")'
           R -e 'renv::status()'
       
+      - name: Clean previous data
+        run: |
+          rm -rf data/*.gz
+          rm -rf app/data/results_with_crew.csv
+      
       - name: Run IMDb analysis script with debugging
         run: |
           Rscript -e "options(error = function() { traceback(2); quit(status = 1) })" imdb_analysis_duckdb_version.R
