@@ -50,6 +50,7 @@ read_and_filter <- function(url, path, select_cols, na.strings = "\\N", filters 
   tryCatch({
     message(paste("Downloading file from:", url))
     download.file(url, path, mode = "wb")
+    message(paste("Download complete. File size:", file.size(path), "bytes"))
   }, error = function(e) {
     stop(paste("Failed to download file:", e$message))
   })
@@ -57,14 +58,22 @@ read_and_filter <- function(url, path, select_cols, na.strings = "\\N", filters 
   # Safely create SQL for column selection
   cols_sql <- paste(dbQuoteIdentifier(con, select_cols), collapse = ", ")
   
+  # Print the query for debugging
+  query <- sprintf(
+    "SELECT %s FROM read_csv_auto('%s', delim='\t', nullstr='\\N', ignore_errors=true, sample_size=-1)",
+    cols_sql,
+    path
+  )
+  message(paste("Executing query:", query))
+  
   # Create and execute query with proper error handling
   tryCatch({
-    query <- sprintf(
-      "SELECT %s FROM read_csv_auto('%s', delim='\t', nullstr='\\N', ignore_errors=true, sample_size=-1)",
-      cols_sql,
-      path
-    )
     dt <- tbl(con, sql(query))
+    
+    # Test if the query works by collecting a small sample
+    message("Testing query with a small sample...")
+    test_sample <- dt %>% head(5) %>% collect()
+    message(paste("Sample test successful. Retrieved", nrow(test_sample), "rows"))
     
     # Apply filters
     if (!is.null(id_filter)) {
@@ -79,6 +88,17 @@ read_and_filter <- function(url, path, select_cols, na.strings = "\\N", filters 
     
     return(dt)
   }, error = function(e) {
+    message("Error details:")
+    message(paste("- File path:", path))
+    message(paste("- File exists:", file.exists(path)))
+    if(file.exists(path)) {
+      message(paste("- File size:", file.size(path), "bytes"))
+      message("- File preview (first 100 bytes):")
+      con <- file(path, "rb")
+      preview <- readBin(con, "raw", 100)
+      close(con)
+      message(rawToChar(preview))
+    }
     stop(paste("Failed to process file:", e$message))
   })
 }
