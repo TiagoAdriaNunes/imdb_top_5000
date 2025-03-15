@@ -178,6 +178,13 @@ ui <- dashboardPage(
         )
       ),
       sliderInput(
+        "rank",
+        "Rank",
+        min = min(data$rank, na.rm = TRUE),
+        max = max(data$rank, na.rm = TRUE),
+        value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE))
+      ),
+      sliderInput(
         "year",
         "Year",
         min = min(data$startYear, na.rm = TRUE),
@@ -188,11 +195,14 @@ ui <- dashboardPage(
         )
       ),
       sliderInput(
-        "rank",
-        "Rank",
-        min = min(data$rank, na.rm = TRUE),
-        max = max(data$rank, na.rm = TRUE),
-        value = c(min(data$rank, na.rm = TRUE), max(data$rank, na.rm = TRUE))
+        "runtime",
+        "Runtime (minutes)",
+        min = min(data$runtimeMinutes, na.rm = TRUE),
+        max = max(data$runtimeMinutes, na.rm = TRUE),
+        value = c(
+          min(data$runtimeMinutes, na.rm = TRUE),
+          max(data$runtimeMinutes, na.rm = TRUE)
+        )
       ),
       sliderInput(
         "rating",
@@ -300,7 +310,8 @@ server <- function(input, output, session) {
         rank >= input$rank[1] & rank <= input$rank[2],
         averageRating >= input$rating[1] &
           averageRating <= input$rating[2],
-        numVotes >= input$votes[1] & numVotes <= input$votes[2]
+        numVotes >= input$votes[1] & numVotes <= input$votes[2],
+        runtimeMinutes >= input$runtime[1] & runtimeMinutes <= input$runtime[2]
       )
     
     # Filter by genres
@@ -409,7 +420,7 @@ server <- function(input, output, session) {
     plot_data <- tryCatch({
       filteredData() %>%
         separate_rows(directors, sep = ",\\s*") %>%
-        filter(!is.na(directors), directors != "", directors != "-") %>%
+        filter(!is.na(directors), directors != "", directors != "-", directors != "NA") %>%
         group_by(directors) %>%
         summarise(movie_count = n()) %>%
         arrange(desc(movie_count)) %>%
@@ -447,7 +458,7 @@ server <- function(input, output, session) {
     plot_data <- tryCatch({
       filteredData() %>%
         separate_rows(writers, sep = ",\\s*") %>%
-        filter(!is.na(writers), writers != "", writers != "-") %>%
+        filter(!is.na(writers), writers != "", writers != "-", writers != "NA") %>%
         group_by(writers) %>%
         summarise(movie_count = n()) %>%
         arrange(desc(movie_count)) %>%
@@ -528,6 +539,10 @@ server <- function(input, output, session) {
     updateSliderInput(session = session, "votes", value = c(
       min(data$numVotes, na.rm = TRUE),
       max(data$numVotes, na.rm = TRUE)
+    ))
+    updateSliderInput(session = session, "runtime", value = c(
+      min(data$runtimeMinutes, na.rm = TRUE),
+      max(data$runtimeMinutes, na.rm = TRUE)
     ))
     updateSliderInput(session = session, "num_results", value = 10)
     updateVirtualSelect(session = session,
