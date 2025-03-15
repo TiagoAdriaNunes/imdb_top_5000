@@ -205,7 +205,7 @@ title_crew_long_combined <- bind_rows(title_crew_long_directors, title_crew_long
 
 # Ensure unique ranks by using tconst as a secondary criterion
 title_basics_ratings <- title_basics_ratings %>%
-  select(tconst, primaryTitle, startYear, rank, averageRating, numVotes, genres) %>%
+  select(tconst, primaryTitle, startYear, rank, averageRating, numVotes, runtimeMinutes, genres) %>%
   collect() %>%  # Materialize the data first
   mutate(genres = gsub(",([^ ])", ", \\1", genres))  # Format genres after collecting
 
@@ -235,7 +235,7 @@ results_with_crew <- results_with_crew %>%
 # Order and select columns
 results_with_crew <- results_with_crew %>%
   arrange(rank) %>%
-  select(tconst, primaryTitle, startYear, rank, averageRating, numVotes, directors, writers, genres, IMDbLink, Title_IMDb_Link)
+  select(tconst, primaryTitle, startYear, rank, averageRating, numVotes, runtimeMinutes, directors, writers, genres, IMDbLink, Title_IMDb_Link)
 
 # Save results to CSV
 output_dir <- "app/data"

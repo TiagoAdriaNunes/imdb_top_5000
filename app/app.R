@@ -45,6 +45,7 @@ required_columns <- c(
   "rank",
   "averageRating",
   "numVotes",
+  "runtimeMinutes",
   "directors",
   "writers",
   "genres",
@@ -321,9 +322,10 @@ server <- function(input, output, session) {
     reactable(
       filteredData() %>%
         select(
+          rank,
           Title_IMDb_Link,
           startYear,
-          rank,
+          runtimeMinutes,
           averageRating,
           numVotes,
           directors,
@@ -331,13 +333,34 @@ server <- function(input, output, session) {
           genres
         ),
       columns = list(
+        rank = colDef(name = "Rank", minWidth = 50),
         Title_IMDb_Link = colDef(
           name = "Title/IMDb Link",
           html = TRUE,
           minWidth = 220
         ),
         startYear = colDef(name = "Year", minWidth = 50),
-        rank = colDef(name = "Rank", minWidth = 50),
+        runtimeMinutes = colDef(
+          name = "Runtime",
+          minWidth = 80,
+          cell = function(value) {
+            if (is.na(value) || value == 0) {
+              return("-")
+            } else {
+              hours <- floor(value / 60)
+              minutes <- value %% 60
+              if (hours > 0) {
+                if (minutes > 0) {
+                  return(paste(hours, "h", minutes, "m"))
+                } else {
+                  return(paste(hours, "h"))
+                }
+              } else {
+                return(paste(minutes, "m"))
+              }
+            }
+          }
+        ),
         averageRating = colDef(name = "Average Rating", minWidth = 70),
         numVotes = colDef(
           name = "Number of Votes",
@@ -348,8 +371,8 @@ server <- function(input, output, session) {
             locales = "en-US"
           )
         ),
-        directors = colDef(name = "Directors", minWidth = 150),
-        writers = colDef(name = "Writers", minWidth = 200),
+        directors = colDef(name = "Directors", minWidth = 150, na = "-"),
+        writers = colDef(name = "Writers", minWidth = 200, na = "-"),
         genres = colDef(name = "Genres", minWidth = 180)
       ),
       searchable = FALSE,
@@ -386,13 +409,16 @@ server <- function(input, output, session) {
     plot_data <- tryCatch({
       filteredData() %>%
         separate_rows(directors, sep = ",\\s*") %>%
+        filter(!is.na(directors), directors != "", directors != "-") %>%
         group_by(directors) %>%
         summarise(movie_count = n()) %>%
         arrange(desc(movie_count)) %>%
         head(input$num_results) %>%
         mutate(directors = factor(directors, levels = rev(unique(directors))))
-    }, error = function(e)
-      NULL)
+    }, error = function(e) {
+      print(paste("Error in directors plot:", e$message))
+      NULL
+    })
     
     # Check if data exists and has rows
     if (is.null(plot_data) || nrow(plot_data) == 0) {
@@ -405,7 +431,6 @@ server <- function(input, output, session) {
       x = ~ movie_count,
       y = ~ directors,
       type = "bar",
-      # Explicitly specify type
       marker = list(color = "#427ea6"),
       orientation = "h"
     ) %>%
@@ -422,13 +447,16 @@ server <- function(input, output, session) {
     plot_data <- tryCatch({
       filteredData() %>%
         separate_rows(writers, sep = ",\\s*") %>%
+        filter(!is.na(writers), writers != "", writers != "-") %>%
         group_by(writers) %>%
         summarise(movie_count = n()) %>%
         arrange(desc(movie_count)) %>%
         head(input$num_results) %>%
         mutate(writers = factor(writers, levels = rev(unique(writers))))
-    }, error = function(e)
-      NULL)
+    }, error = function(e) {
+      print(paste("Error in writers plot:", e$message))
+      NULL
+    })
     
     # Check if data exists and has rows
     if (is.null(plot_data) || nrow(plot_data) == 0) {
@@ -441,7 +469,6 @@ server <- function(input, output, session) {
       x = ~ movie_count,
       y = ~ writers,
       type = "bar",
-      # Explicitly specify type
       marker = list(color = "#427ea6"),
       orientation = "h"
     ) %>%
@@ -456,13 +483,16 @@ server <- function(input, output, session) {
     plot_data <- tryCatch({
       filteredData() %>%
         separate_rows(genres, sep = ",\\s*") %>%
+        filter(!is.na(genres), genres != "", genres != "-") %>%
         group_by(genres) %>%
         summarise(movie_count = n()) %>%
         arrange(desc(movie_count)) %>%
         head(input$num_results) %>%
         mutate(genres = factor(genres, levels = rev(unique(genres))))
-    }, error = function(e)
-      NULL)
+    }, error = function(e) {
+      print(paste("Error in genres plot:", e$message))
+      NULL
+    })
     
     # Check if data exists and has rows
     if (is.null(plot_data) || nrow(plot_data) == 0) {
@@ -475,7 +505,6 @@ server <- function(input, output, session) {
       x = ~ movie_count,
       y = ~ genres,
       type = "bar",
-      # Explicitly specify type
       marker = list(color = "#427ea6"),
       orientation = "h"
     ) %>%
