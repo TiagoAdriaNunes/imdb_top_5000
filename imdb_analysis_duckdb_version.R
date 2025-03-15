@@ -97,6 +97,11 @@ title_basics <- read_and_filter(
     titleType %in% c('movie', 'tvMovie')
   )
 
+# Define minimum vote threshold - IMDb uses different thresholds for different lists
+# For Top 250, they use around 25,000 votes as minimum
+m <- 25000
+
+# Calculate ratings from all titles
 title_ratings <- read_and_filter(
   files$title_ratings,
   "data/title.ratings.tsv.gz",
@@ -104,13 +109,49 @@ title_ratings <- read_and_filter(
 ) %>%
   filter(!is.na(numVotes), numVotes > 0)
 
-# Create title_basics_ratings first and get the filtered tconst list
+# Calculate C (global weighted average)
+# First collect the data to perform the calculation in R
+title_ratings_collected <- title_ratings %>% collect()
+
+# Calculate the weighted average in R
+C <- weighted.mean(title_ratings_collected$averageRating, 
+                   title_ratings_collected$numVotes)
+
+print(paste("Global weighted average (C):", C))
+
+# Create title_basics_ratings with the IMDb weighted formula
 title_basics_ratings <- title_basics %>%
   inner_join(title_ratings, by = "tconst") %>%
-  mutate(score = averageRating * numVotes) %>%
-  arrange(desc(score), tconst) %>%
+  # Filter to ensure each title has at least m votes
+  filter(numVotes >= m) %>%
+  # Apply the IMDb Bayesian weighted average formula
+  # WR = (v/(v+m)) × R + (m/(v+m)) × C
+  # Where:
+  # WR = Weighted Rating
+  # R = Average Rating for the movie
+  # v = Number of votes for the movie
+  # m = Minimum votes required (25,000)
+  # C = Mean vote across the whole report (currently 7.0)
+  mutate(
+    score = ((numVotes / (numVotes + m)) * averageRating) +
+            ((m / (numVotes + m)) * C),
+    # Round score to 1 decimal place for comparison purposes
+    score_rounded = round(score, 1)
+  ) %>%
+  # Sort by the weighted score in descending order
+  # For ties (same score_rounded), use multiple criteria:
+  # 1. Exact score (not rounded)
+  # 2. Number of votes (more votes is better)
+  # 3. Average rating (higher rating is better
+  arrange(
+    desc(score_rounded),
+    desc(numVotes),
+    desc(score),
+    desc(averageRating),
+    tconst
+  ) %>%
   mutate(rank = row_number()) %>%
-  filter(rank <= 5000) %>%  # Apply rank filter earlier
+  filter(rank <= 5000) %>%
   compute()  # Create temporary table in DuckDB
 
 # Get the filtered tconst list
