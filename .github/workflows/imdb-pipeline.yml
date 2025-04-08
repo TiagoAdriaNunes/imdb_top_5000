@@ -75,8 +75,8 @@ jobs:
         with:
           name: imdb-results
           path: app/data/results_with_crew.csv
-          if-no-files-found: error  # Falhar explicitamente se o arquivo não existir
-
+          if-no-files-found: error
+          
       - name: Configure Git
         run: |
           git config --global user.email "tiagoadrianunes@gmail.com"
