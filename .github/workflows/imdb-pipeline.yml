@@ -1,4 +1,4 @@
-name: IMDb Pipeline
+name: IMDb Movies Pipeline
 
 on:
   schedule:
@@ -76,11 +76,11 @@ jobs:
           name: imdb-results
           path: app/data/results_with_crew.csv
           if-no-files-found: error
-          
+
       - name: Configure Git
         run: |
           git config --global user.email "tiagoadrianunes@gmail.com"
-          git config --global user.name "TiagoAdriaNunes"
+          git config --global user.name "Tiago Adria Nunes"
           git config --global pull.rebase false
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
 
