@@ -231,7 +231,16 @@ ui <- dashboardPage(
         max = 20,
         value = 10
       ),
-      div(class = "reset-button-container", actionButton("reset", "Reset filters", icon = icon("redo")))
+      div(class = "reset-button-container", actionButton("reset", "Reset filters", icon = icon("redo"))),
+      div(
+        style = "padding: 15px; text-align: left; font-size: 0.8em; color: #fff;",
+        HTML(
+          "Information courtesy of<br>
+          <strong>IMDb</strong><br>
+          (<a href='https://www.imdb.com' target='_blank'>https://www.imdb.com</a>).<br>
+          Used with permission."
+        )
+      )
     )
   ),
   dashboardBody(
