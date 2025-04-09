@@ -51,7 +51,10 @@ The `imdb_analysis_duckdb_version.R` script:
 
 MIT License. See the `LICENSE` file for details.
 
-Information courtesy of IMDb (https://www.imdb.com). Used with permission.
+Information courtesy of  
+IMDb  
+(https://www.imdb.com).  
+Used with permission.
 
 ## Contributing
 
