@@ -307,6 +307,44 @@
       "Maintainer": "Kirill Müller <kirill@cynkra.com>",
       "Repository": "RSPM"
     },
+    "box": {
+      "Package": "box",
+      "Version": "1.2.0",
+      "Source": "Repository",
+      "Title": "Write Reusable, Composable and Modular R Code",
+      "Authors@R": "c( person( 'Konrad', 'Rudolph', email = 'konrad.rudolph@gmail.com', role = c('aut', 'cre'), comment = c(ORCID = '0000-0002-9866-7051') ), person( 'Michael', 'Schubert', email = 'mschu.dev@gmail.com', role = 'ctb', comment = c(ORCID = '0000-0002-6862-5221') ) )",
+      "URL": "https://klmr.me/box/, https://github.com/klmr/box",
+      "BugReports": "https://github.com/klmr/box/issues",
+      "Description": "A modern module system for R. Organise code into hierarchical, composable, reusable modules, and use it effortlessly across projects via a flexible, declarative dependency loading syntax.",
+      "Depends": [
+        "R (>= 3.6.0)"
+      ],
+      "Imports": [
+        "tools"
+      ],
+      "License": "MIT + file LICENSE",
+      "Encoding": "UTF-8",
+      "Suggests": [
+        "devtools",
+        "knitr (>= 1.40)",
+        "rmarkdown",
+        "R6",
+        "rlang",
+        "roxygen2 (>= 7.2.1)",
+        "shiny",
+        "stringr",
+        "testthat (>= 3.1.7)"
+      ],
+      "Enhances": [
+        "rstudioapi"
+      ],
+      "VignetteBuilder": "knitr",
+      "RoxygenNote": "7.3.1",
+      "NeedsCompilation": "yes",
+      "Author": "Konrad Rudolph [aut, cre] (<https://orcid.org/0000-0002-9866-7051>), Michael Schubert [ctb] (<https://orcid.org/0000-0002-6862-5221>)",
+      "Maintainer": "Konrad Rudolph <konrad.rudolph@gmail.com>",
+      "Repository": "CRAN"
+    },
     "bslib": {
       "Package": "bslib",
       "Version": "0.9.0",
