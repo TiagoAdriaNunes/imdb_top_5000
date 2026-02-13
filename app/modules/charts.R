@@ -6,6 +6,7 @@ box::use(
   tidyr[separate_rows],
   dplyr[filter, group_by, summarise, n, arrange, desc, mutate],
   utils[head],
+  logger[log_error],
   ../utils/helpers[create_empty_plot]
 )
 
@@ -67,7 +68,7 @@ chartsServer <- function(id, filteredData, num_results, CHART_COLOR = "#427ea6")
           head(num_results()) |>
           mutate(directors = factor(directors, levels = rev(unique(directors))))
       }, error = function(e) {
-        print(paste("Error in directors plot:", e$message))
+        log_error("Error in directors plot: {e$message}")
         NULL
       })
 
@@ -105,7 +106,7 @@ chartsServer <- function(id, filteredData, num_results, CHART_COLOR = "#427ea6")
           head(num_results()) |>
           mutate(writers = factor(writers, levels = rev(unique(writers))))
       }, error = function(e) {
-        print(paste("Error in writers plot:", e$message))
+        log_error("Error in writers plot: {e$message}")
         NULL
       })
 
@@ -143,7 +144,7 @@ chartsServer <- function(id, filteredData, num_results, CHART_COLOR = "#427ea6")
           head(num_results()) |>
           mutate(genres = factor(genres, levels = rev(unique(genres))))
       }, error = function(e) {
-        print(paste("Error in genres plot:", e$message))
+        log_error("Error in genres plot: {e$message}")
         NULL
       })
 

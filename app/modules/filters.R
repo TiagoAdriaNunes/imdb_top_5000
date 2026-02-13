@@ -1,16 +1,17 @@
 box::use(
   shiny[NS, tagList, tags, HTML, fluidRow, column, sliderInput, div, actionButton, icon, moduleServer, observeEvent, updateSliderInput, reactive],
   shinydashboard[sidebarMenu, menuItem],
-  shinyWidgets[virtualSelectInput, updateVirtualSelect]
+  shinyWidgets[virtualSelectInput, updateVirtualSelect],
+  logger[log_info]
 )
 
 #' @export
 filtersUI <- function(id, file_date, data, unique_titles, unique_directors, unique_writers, unique_genres) {
   ns <- NS(id)
 
-  # Debug: print data ranges
-  print(paste("Data rows in filtersUI:", nrow(data)))
-  print(paste("Votes range:", min(data$numVotes, na.rm = TRUE), "to", max(data$numVotes, na.rm = TRUE)))
+  # Debug: log data ranges
+  log_info("Data rows in filtersUI: {nrow(data)}")
+  log_info("Votes range: {min(data$numVotes, na.rm = TRUE)} to {max(data$numVotes, na.rm = TRUE)}")
 
   tagList(
     tags$head(tags$style(
