@@ -1,7 +1,8 @@
 # Load required libraries using box
 box::use(
   DBI[dbConnect, dbExecute, dbGetQuery],
-  duckdb[duckdb]
+  duckdb[duckdb],
+  logger[log_info]
 )
 
 # Connect to DuckDB
@@ -11,18 +12,18 @@ con <- dbConnect(duckdb(), dbdir = ":memory:")
 results_file <- "data/results_with_crew.csv"
 if (file.exists(results_file)) {
   file.remove(results_file)
-  print(paste("Removed existing file:", results_file))
+  log_info("Removed existing file: {results_file}")
 }
 
 # Download the file from GitHub
 github_url <- "https://raw.githubusercontent.com/TiagoAdriaNunes/imdb_top_5000/main/app/data/results_with_crew.csv"
 dir.create(dirname(results_file), showWarnings = FALSE, recursive = TRUE)
 download.file(github_url, results_file, mode = "wb")
-print(paste("File downloaded from GitHub to:", results_file))
+log_info("File downloaded from GitHub to: {results_file}")
 
 # Get file creation/modification date for Last Update display
 file_date <- format(file.mtime(results_file), "%Y-%m-%d")
-print(paste("File last modified on:", file_date))
+log_info("File last modified on: {file_date}")
 
 # Load the data into DuckDB
 dbExecute(

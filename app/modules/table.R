@@ -2,7 +2,8 @@ box::use(
   shiny[NS, moduleServer],
   reactable[reactableOutput, renderReactable, reactable, colDef, colFormat],
   dplyr[select],
-  utils[head]
+  utils[head],
+  logger[log_info]
 )
 
 #' @export
@@ -18,7 +19,7 @@ tableServer <- function(id, filteredData) {
 
     output$dataTable <- renderReactable({
       data_to_display <- filteredData()
-      print(paste("Table: filteredData has", nrow(data_to_display), "rows"))
+      log_info("Table: filteredData has {nrow(data_to_display)} rows")
 
       data_selected <- data_to_display |>
         select(
@@ -33,7 +34,7 @@ tableServer <- function(id, filteredData) {
           genres
         )
 
-      print(paste("Table: after select has", nrow(data_selected), "rows"))
+      log_info("Table: after select has {nrow(data_selected)} rows")
 
       reactable(
         data_selected,
