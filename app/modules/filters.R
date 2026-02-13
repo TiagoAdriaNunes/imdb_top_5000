@@ -1,5 +1,5 @@
 box::use(
-  shiny[NS, tagList, tags, HTML, fluidRow, column, sliderInput, div, actionButton, icon, moduleServer, observeEvent, updateSliderInput, reactive],
+  shiny[NS, tagList, HTML, fluidRow, column, sliderInput, div, actionButton, icon, moduleServer, observeEvent, updateSliderInput, reactive],
   shinydashboard[sidebarMenu, menuItem],
   shinyWidgets[virtualSelectInput, updateVirtualSelect],
   logger[log_info]
@@ -14,21 +14,6 @@ filtersUI <- function(id, file_date, data, unique_titles, unique_directors, uniq
   log_info("Votes range: {min(data$numVotes, na.rm = TRUE)} to {max(data$numVotes, na.rm = TRUE)}")
 
   tagList(
-    tags$head(tags$style(
-      HTML(
-        "
-        .vscomp-dropbox-container {
-          z-index: 99999 !important;
-        }
-        .sidebar-menu > .menu-item {
-          margin-bottom: 0px !important;
-        }
-        .form-group {
-          margin-bottom: 0px !important;
-        }
-      "
-      )
-    )),
     sidebarMenu(
       menuItem(
         HTML(paste0("Top 5000 Movies<br>Last Update: ", file_date)),
@@ -153,7 +138,7 @@ filtersUI <- function(id, file_date, data, unique_titles, unique_directors, uniq
       ),
       div(class = "reset-button-container", actionButton(ns("reset"), "Reset filters", icon = icon("redo"))),
       div(
-        style = "padding: 15px; text-align: left; font-size: 0.8em; color: #fff;",
+        class = "imdb-attribution",
         HTML(
           "Information courtesy of<br>
           <strong>IMDb</strong><br>
