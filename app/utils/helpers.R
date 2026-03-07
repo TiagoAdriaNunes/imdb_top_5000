@@ -4,26 +4,29 @@ box::use(
 )
 
 #' @export
-filter_data <- function(data, director, writer, primaryTitle, year, rank, rating, votes, runtime, genre) {
+filter_data <- function(data, director, writer, primary_title, year, rank, rating, votes, runtime, genre) {
   filtered <- data
 
   # Filter by directors
   if (length(director) > 0) {
     filtered <- filtered |>
-      filter(sapply(strsplit(as.character(directors), ",\\s*"), function(d)
-        any(director %in% d)))
+      filter(sapply(strsplit(as.character(directors), ",\\s*"), function(d) {
+        any(director %in% d)
+      }))
   }
 
   # Filter by writers
   if (length(writer) > 0) {
     filtered <- filtered |>
-      filter(sapply(strsplit(as.character(writers), ",\\s*"), function(w)
-        any(writer %in% w)))
+      filter(sapply(strsplit(as.character(writers), ",\\s*"), function(w) {
+        any(writer %in% w)
+      }))
   }
 
   # Filter by movie titles
-  if (length(primaryTitle) > 0) {
-    filtered <- filtered |> filter(.data$primaryTitle %in% primaryTitle)
+  if (length(primary_title) > 0) {
+    filtered <- filtered |>
+      filter(.data$primaryTitle %in% primary_title)
   }
 
   # Extract range values to avoid variable name collisions with column names
@@ -43,23 +46,26 @@ filter_data <- function(data, director, writer, primaryTitle, year, rank, rating
     filter(
       .data$startYear >= year_min & .data$startYear <= year_max,
       .data$rank >= rank_min & .data$rank <= rank_max,
-      .data$averageRating >= rating_min & .data$averageRating <= rating_max,
+      .data$averageRating >= rating_min &
+        .data$averageRating <= rating_max,
       .data$numVotes >= votes_min & .data$numVotes <= votes_max,
-      .data$runtimeMinutes >= runtime_min & .data$runtimeMinutes <= runtime_max
+      .data$runtimeMinutes >= runtime_min &
+        .data$runtimeMinutes <= runtime_max
     )
 
   # Filter by genres (must match ALL selected genres)
   if (length(genre) > 0) {
     filtered <- filtered |>
-      filter(sapply(strsplit(as.character(genres), ",\\s*"), function(g)
-        all(genre %in% g)))
+      filter(sapply(strsplit(as.character(genres), ",\\s*"), function(g) {
+        all(genre %in% g)
+      }))
   }
 
-  return(filtered)
+  filtered
 }
 
 #' @export
-create_empty_plot <- function(message = "No Data Available", CHART_COLOR = "#427ea6") {
+create_empty_plot <- function(message = "No Data Available", chart_color = "#427ea6") {
   plot_ly() |>
     add_annotations(
       text = message,
@@ -68,7 +74,7 @@ create_empty_plot <- function(message = "No Data Available", CHART_COLOR = "#427
       xref = "paper",
       yref = "paper",
       showarrow = FALSE,
-      font = list(size = 20, color = CHART_COLOR)
+      font = list(size = 20, color = chart_color)
     ) |>
     layout(
       xaxis = list(visible = FALSE),

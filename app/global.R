@@ -61,11 +61,12 @@ unique_titles <- unique(as.character(data$primaryTitle))
 unique_directors <- unique(unlist(strsplit(as.character(data$directors), ",\\s*")))
 unique_writers <- unique(unlist(strsplit(as.character(data$writers), ",\\s*")))
 unique_genres <- sort(unique(unlist(strsplit(
-  as.character(data$genres), ",\\s*"
+  as.character(data$genres),
+  ",\\s*"
 ))))
 
 # Constants
-CHART_COLOR <- "#427ea6"
-SPINNER_TYPE <- 3
-SPINNER_COLOR <- "#427ea6"
-SPINNER_BG_COLOR <- "#FFFFFF"
+chart_color <- "#427ea6"
+spinner_type <- 3
+spinner_color <- "#427ea6"
+spinner_bg_color <- "#FFFFFF"
