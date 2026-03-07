@@ -1,10 +1,10 @@
 # Home Module UI
-homeUI <- function(id) {
+home_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
     # Sidebar content (filters)
-    sidebar = filtersUI(ns("filters")),
+    sidebar = filters_ui(ns("filters")),
 
     # Body content (charts and table)
     body = tagList(
@@ -13,27 +13,26 @@ homeUI <- function(id) {
         pulse = TRUE,
         fade = TRUE
       ),
-      chartsUI(ns("charts")),
-      tableUI(ns("table"))
+      charts_ui(ns("charts")),
+      table_ui(ns("table"))
     )
   )
 }
 
 # Home Module Server
-homeServer <- function(id) {
+home_server <- function(id) {
   moduleServer(id, function(input, output, session) {
-
     # Call filters module and get reactive filter values
-    filters <- filtersServer("filters")
+    filters <- filters_server("filters")
 
     # Create filtered data reactive based on filter values
-    filteredData <- reactive({
+    filtered_data <- reactive({
       filter_values <- filters()
       filter_data(
         data = data,
         director = filter_values$director,
         writer = filter_values$writer,
-        primaryTitle = filter_values$primaryTitle,
+        primary_title = filter_values$primaryTitle,
         year = filter_values$year,
         rank = filter_values$rank,
         rating = filter_values$rating,
@@ -49,9 +48,9 @@ homeServer <- function(id) {
     })
 
     # Call charts module
-    chartsServer("charts", filteredData, num_results)
+    charts_server("charts", filtered_data, num_results)
 
     # Call table module
-    tableServer("table", filteredData)
+    table_server("table", filtered_data)
   })
 }

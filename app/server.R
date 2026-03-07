@@ -4,26 +4,26 @@ box::use(
 )
 
 box::use(
-  utils/helpers[filter_data],
-  modules/filters[filtersServer],
-  modules/charts[chartsServer],
-  modules/table[tableServer]
+  utils / helpers[filter_data],
+  modules / filters[filters_server],
+  modules / charts[charts_server],
+  modules / table[table_server]
 )
 
 # Define server logic
 server <- function(input, output, session) {
   # Call filters module and get reactive filter values
-  filters <- filtersServer("home-filters", data)
+  filters <- filters_server("home-filters", data)
 
   # Create filtered data reactive based on filter values
-  filteredData <- reactive({
+  filtered_data <- reactive({
     filter_values <- filters()
 
     filter_data(
       data = data,
       director = filter_values$director,
       writer = filter_values$writer,
-      primaryTitle = filter_values$primaryTitle,
+      primary_title = filter_values$primaryTitle,
       year = filter_values$year,
       rank = filter_values$rank,
       rating = filter_values$rating,
@@ -39,8 +39,8 @@ server <- function(input, output, session) {
   })
 
   # Call charts module
-  chartsServer("home-charts", filteredData, num_results)
+  charts_server("home-charts", filtered_data, num_results)
 
   # Call table module
-  tableServer("home-table", filteredData)
+  table_server("home-table", filtered_data)
 }

@@ -1,14 +1,19 @@
 # Import modules using box
 box::use(
   shiny[tags, icon, useBusyIndicators],
-  shinydashboard[dashboardPage, dashboardHeader, dashboardSidebar, dashboardBody],
+  shinydashboard[
+    dashboardPage,
+    dashboardHeader,
+    dashboardSidebar,
+    dashboardBody
+  ],
   sass[sass_file]
 )
 
 box::use(
-  modules/filters[filtersUI],
-  modules/charts[chartsUI],
-  modules/table[tableUI]
+  modules / filters[filters_ui],
+  modules / charts[charts_ui],
+  modules / table[table_ui]
 )
 
 # Define UI
@@ -37,7 +42,15 @@ ui <- dashboardPage(
     )
   ),
   dashboardSidebar(
-    filtersUI("home-filters", file_date, data, unique_titles, unique_directors, unique_writers, unique_genres)
+    filters_ui(
+      "home-filters",
+      file_date,
+      data,
+      unique_titles,
+      unique_directors,
+      unique_writers,
+      unique_genres
+    )
   ),
   dashboardBody(
     tags$head(tags$style(sass_file("static/custom.scss"))),
@@ -46,7 +59,7 @@ ui <- dashboardPage(
       pulse = TRUE,
       fade = TRUE
     ),
-    chartsUI("home-charts"),
-    tableUI("home-table")
+    charts_ui("home-charts"),
+    table_ui("home-table")
   )
 )

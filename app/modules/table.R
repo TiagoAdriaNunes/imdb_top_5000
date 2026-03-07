@@ -1,25 +1,32 @@
 box::use(
   shiny[NS, moduleServer],
-  reactable[reactableOutput, renderReactable, reactable, colDef, colFormat],
+  reactable[
+    reactableOutput,
+    renderReactable,
+    reactable,
+    colDef,
+    colFormat
+  ],
   dplyr[select],
   utils[head],
   logger[log_info]
 )
 
 #' @export
-tableUI <- function(id) {
+table_ui <- function(id) {
   ns <- NS(id)
 
   reactableOutput(ns("dataTable"))
 }
 
 #' @export
-tableServer <- function(id, filteredData) {
+table_server <- function(id, filtered_data) {
   moduleServer(id, function(input, output, session) {
-
     output$dataTable <- renderReactable({
-      data_to_display <- filteredData()
-      log_info("Table: filteredData has {nrow(data_to_display)} rows")
+      data_to_display <- filtered_data()
+      log_info(
+        "Table: filteredData has {nrow(data_to_display)} rows"
+      )
 
       data_selected <- data_to_display |>
         select(
@@ -34,7 +41,9 @@ tableServer <- function(id, filteredData) {
           genres
         )
 
-      log_info("Table: after select has {nrow(data_selected)} rows")
+      log_info(
+        "Table: after select has {nrow(data_selected)} rows"
+      )
 
       reactable(
         data_selected,
@@ -51,23 +60,26 @@ tableServer <- function(id, filteredData) {
             minWidth = 80,
             cell = function(value) {
               if (is.na(value) || value == 0) {
-                return("-")
+                "-"
               } else {
                 hours <- floor(value / 60)
                 minutes <- value %% 60
                 if (hours > 0) {
                   if (minutes > 0) {
-                    return(paste(hours, "h", minutes, "m"))
+                    paste(hours, "h", minutes, "m")
                   } else {
-                    return(paste(hours, "h"))
+                    paste(hours, "h")
                   }
                 } else {
-                  return(paste(minutes, "m"))
+                  paste(minutes, "m")
                 }
               }
             }
           ),
-          averageRating = colDef(name = "Average Rating", minWidth = 70),
+          averageRating = colDef(
+            name = "Average Rating",
+            minWidth = 70
+          ),
           numVotes = colDef(
             name = "Number of Votes",
             minWidth = 80,
@@ -77,8 +89,16 @@ tableServer <- function(id, filteredData) {
               locales = "en-US"
             )
           ),
-          directors = colDef(name = "Directors", minWidth = 150, na = "-"),
-          writers = colDef(name = "Writers", minWidth = 200, na = "-"),
+          directors = colDef(
+            name = "Directors",
+            minWidth = 150,
+            na = "-"
+          ),
+          writers = colDef(
+            name = "Writers",
+            minWidth = 200,
+            na = "-"
+          ),
           genres = colDef(name = "Genres", minWidth = 180)
         ),
         searchable = FALSE,
