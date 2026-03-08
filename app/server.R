@@ -4,10 +4,10 @@ box::use(
 )
 
 box::use(
-  utils / helpers[filter_data],
-  modules / filters[filters_server],
-  modules / charts[charts_server],
-  modules / table[table_server]
+  . / utils / helpers[filter_data],
+  . / modules / filters[filters_server],
+  . / modules / charts[charts_server],
+  . / modules / table[table_server]
 )
 
 # Define server logic

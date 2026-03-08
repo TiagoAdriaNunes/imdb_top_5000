@@ -10,7 +10,7 @@ box::use(
 )
 
 box::use(
-  ./utils/helpers[create_empty_plot],
+  .. / utils / helpers[create_empty_plot],
 )
 
 #' @export

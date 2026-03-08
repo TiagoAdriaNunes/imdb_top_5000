@@ -6,6 +6,10 @@ box::use(
   shiny[shinyApp]
 )
 
+# Set box module search path to the app directory so local modules resolve correctly
+options(box.path = getwd())
+
+
 # Source global first (data loading and constants)
 source("global.R")
 
