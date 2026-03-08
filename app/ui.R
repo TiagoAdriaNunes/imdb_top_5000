@@ -6,9 +6,9 @@ box::use(
 )
 
 box::use(
-  modules / filters[filters_ui],
-  modules / charts[charts_ui],
-  modules / table[table_ui]
+  . / modules / filters[filters_ui],
+  . / modules / charts[charts_ui],
+  . / modules / table[table_ui]
 )
 
 # Define UI
