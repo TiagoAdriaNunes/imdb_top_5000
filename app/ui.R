@@ -1,13 +1,8 @@
 # Import modules using box
 box::use(
-  shiny[tags, icon, useBusyIndicators],
-  shinydashboard[
-    dashboardPage,
-    dashboardHeader,
-    dashboardSidebar,
-    dashboardBody
-  ],
-  sass[sass_file]
+  sass[sass_file],
+  shiny[icon, tags, useBusyIndicators],
+  shinydashboard[dashboardBody, dashboardHeader, dashboardPage, dashboardSidebar],
 )
 
 box::use(

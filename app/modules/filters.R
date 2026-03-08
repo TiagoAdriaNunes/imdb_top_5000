@@ -1,22 +1,8 @@
 box::use(
-  shiny[
-    NS,
-    tagList,
-    HTML,
-    fluidRow,
-    column,
-    sliderInput,
-    div,
-    actionButton,
-    icon,
-    moduleServer,
-    observeEvent,
-    updateSliderInput,
-    reactive
-  ],
-  shinydashboard[sidebarMenu, menuItem],
-  shinyWidgets[virtualSelectInput, updateVirtualSelect],
-  logger[log_info]
+  logger[log_info],
+  shiny[actionButton, column, div, fluidRow, HTML, icon, moduleServer, NS, observeEvent, reactive, sliderInput, tagList, updateSliderInput],
+  shinydashboard[menuItem, sidebarMenu],
+  shinyWidgets[updateVirtualSelect, virtualSelectInput],
 )
 
 #' @export
