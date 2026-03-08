@@ -1,15 +1,9 @@
 box::use(
-  shiny[NS, moduleServer],
-  reactable[
-    reactableOutput,
-    renderReactable,
-    reactable,
-    colDef,
-    colFormat
-  ],
   dplyr[select],
+  logger[log_info],
+  reactable[colDef, colFormat, reactable, reactableOutput, renderReactable],
+  shiny[moduleServer, NS],
   utils[head],
-  logger[log_info]
 )
 
 #' @export

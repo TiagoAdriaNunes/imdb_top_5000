@@ -1,6 +1,6 @@
 box::use(
   dplyr[filter],
-  plotly[plot_ly, add_annotations, layout, config]
+  plotly[add_annotations, config, layout, plot_ly],
 )
 
 #' @export

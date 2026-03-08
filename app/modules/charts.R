@@ -1,20 +1,16 @@
 box::use(
-  shiny[NS, fluidRow, column, moduleServer],
-  shinydashboard[box],
-  shinycssloaders[withSpinner],
-  plotly[
-    plotlyOutput,
-    renderPlotly,
-    plot_ly,
-    add_annotations,
-    layout,
-    config
-  ],
-  tidyr[separate_rows],
-  dplyr[filter, group_by, summarise, n, arrange, desc, mutate],
-  utils[head],
+  dplyr[arrange, desc, filter, group_by, mutate, n, summarise],
   logger[log_error],
-  .. / utils / helpers[create_empty_plot]
+  plotly[add_annotations, config, layout, plot_ly, plotlyOutput, renderPlotly],
+  shiny[column, fluidRow, moduleServer, NS],
+  shinycssloaders[withSpinner],
+  shinydashboard[box],
+  tidyr[separate_rows],
+  utils[head],
+)
+
+box::use(
+  ./utils/helpers[create_empty_plot],
 )
 
 #' @export
