@@ -44,6 +44,9 @@ jobs:
           R -e 'if(!requireNamespace("duckplyr", quietly = TRUE)) install.packages("duckplyr")'
           R -e 'if(!requireNamespace("tidyr", quietly = TRUE)) install.packages("tidyr")'
           R -e 'if(!requireNamespace("dbplyr", quietly = TRUE)) install.packages("dbplyr")'
+          R -e 'if(!requireNamespace("logger", quietly = TRUE)) install.packages("logger")'
+          R -e 'if(!requireNamespace("glue", quietly = TRUE)) install.packages("glue")'
+          R -e 'if(!requireNamespace("curl", quietly = TRUE)) install.packages("curl")'
           R -e 'renv::status()'
       
       - name: Create necessary directories
