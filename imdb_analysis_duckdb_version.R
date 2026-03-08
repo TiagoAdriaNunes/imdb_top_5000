@@ -49,9 +49,12 @@ files <- list(
 # Deletes the file and stops if corrupt or missing expected columns.
 validate_tsv_gz <- function(path, expected_cols) {
   result <- tryCatch(
-    dbGetQuery(con, glue(
-      "SELECT * FROM read_csv_auto('{path}', delim='\\t', nullstr='\\N') LIMIT 0"
-    )),
+    dbGetQuery(
+      con,
+      glue(
+        "SELECT * FROM read_csv_auto('{path}', delim='\\t', nullstr='\\N') LIMIT 0"
+      )
+    ),
     error = function(e) e
   )
   if (inherits(result, "error")) {
@@ -70,13 +73,18 @@ validate_tsv_gz <- function(path, expected_cols) {
 
 # Returns the Content-Length of a remote URL via a HEAD request, or NA on failure.
 remote_size <- function(url) {
-  tryCatch({
-    resp <- curl_fetch_memory(url, handle = new_handle(nobody = TRUE, followlocation = TRUE))
-    hdrs <- parse_headers(rawToChar(resp$headers), multiple = FALSE)
-    cl   <- hdrs[grepl("^content-length:", hdrs, ignore.case = TRUE)]
-    if (length(cl) == 0) return(NA_real_)
-    as.numeric(trimws(sub("(?i)content-length:\\s*", "", cl[length(cl)], perl = TRUE)))
-  }, error = function(e) NA_real_)
+  tryCatch(
+    {
+      resp <- curl_fetch_memory(url, handle = new_handle(nobody = TRUE, followlocation = TRUE))
+      hdrs <- parse_headers(rawToChar(resp$headers), multiple = FALSE)
+      cl <- hdrs[grepl("^content-length:", hdrs, ignore.case = TRUE)]
+      if (length(cl) == 0) {
+        return(NA_real_)
+      }
+      as.numeric(trimws(sub("(?i)content-length:\\s*", "", cl[length(cl)], perl = TRUE)))
+    },
+    error = function(e) NA_real_
+  )
 }
 
 # Function to download and create a lazy DuckDB tbl from an IMDb TSV.gz file
@@ -91,16 +99,17 @@ read_and_filter <- function(
     log_info("Downloading {basename(path)}...")
     tryCatch(
       curl_download(
-        url, path,
+        url,
+        path,
         handle = new_handle(timeout = 600, connecttimeout = 30),
-        quiet = FALSE
+        quiet = TRUE
       ),
       error = function(e) stop(paste("Failed to download:", e$message))
     )
     validate_tsv_gz(path, select_cols)
   } else {
     remote <- remote_size(url)
-    local  <- file.info(path)$size
+    local <- file.info(path)$size
     if (!is.na(remote) && local != remote) {
       log_warn(
         "Size mismatch for {basename(path)}: local={local} bytes, remote={remote} bytes — consider deleting and re-running"
@@ -111,9 +120,12 @@ read_and_filter <- function(
   }
 
   cols_sql <- paste(dbQuoteIdentifier(con, select_cols), collapse = ", ")
-  dt <- tbl(con, sql(glue(
-    "SELECT {cols_sql} FROM read_csv_auto('{path}', delim='\\t', nullstr='\\N', ignore_errors=true)"
-  )))
+  dt <- tbl(
+    con,
+    sql(glue(
+      "SELECT {cols_sql} FROM read_csv_auto('{path}', delim='\\t', nullstr='\\N', ignore_errors=true)"
+    ))
+  )
 
   if (!is.null(id_filter)) {
     dt <- dt |> filter(!!sym(id_col) %in% id_filter)
@@ -221,7 +233,10 @@ log_info("[6/7] Aggregating crew names in DuckDB...")
 duckdb::duckdb_register(con, "title_crew_db", title_crew)
 duckdb::duckdb_register(con, "name_basics_db", name_basics)
 
-crew_names <- tbl(con, sql("
+crew_names <- tbl(
+  con,
+  sql(
+    "
   WITH crew_expanded AS (
     SELECT tconst, 'directors' AS role,
            unnest(string_split(directors, ',')) AS nconst
@@ -240,7 +255,9 @@ crew_names <- tbl(con, sql("
   SELECT tconst, role, string_agg(primaryName, ', ') AS names
   FROM crew_with_names
   GROUP BY tconst, role
-")) |>
+"
+  )
+) |>
   collect() |>
   pivot_wider(
     names_from = role,
