@@ -6,44 +6,35 @@ library(duckdb)
 library(duckplyr)
 library(tidyr)
 library(dbplyr)
+library(logger)
+library(glue)
+library(curl)
+
+# Override dplyr methods with duckplyr implementations
+duckplyr::methods_overwrite()
 
 # Initialize DuckDB connection
 con <- dbConnect(duckdb())
 
 # Start time measurement
 start_time <- Sys.time()
+log_info("Script started")
 
 # Create a directory for data storage if it doesn't exist
 data_dir <- "data"
 if (!dir.exists(data_dir)) {
   dir.create(data_dir)
 } else {
-  # Get current date
-  today <- Sys.Date()
-
-  # Clean up existing .gz files that are not from today
-  gz_files <- list.files(
-    data_dir,
-    pattern = "\\.gz$",
-    full.names = TRUE
-  )
-  if (length(gz_files) > 0) {
-    # Get file modification dates
-    file_dates <- as.Date(file.info(gz_files)$mtime)
-
-    # Find files that are not from today
-    old_files <- gz_files[file_dates != today]
-
-    if (length(old_files) > 0) {
-      file.remove(old_files)
-      print(paste(
-        "Removed",
-        length(old_files),
-        "outdated .gz files"
-      ))
-    }
+  gz_files <- list.files(data_dir, pattern = "\\.gz$", full.names = TRUE)
+  old_files <- gz_files[as.Date(file.info(gz_files)$mtime) < Sys.Date()]
+  if (length(old_files) > 0) {
+    file.remove(old_files)
+    log_info("Removed {length(old_files)} outdated .gz file(s) from previous days")
   }
 }
+
+# Helper to log elapsed time for a step
+elapsed <- function(t0) round(as.numeric(difftime(Sys.time(), t0, units = "secs")), 2)
 
 # Define file paths and URLs in a list
 # https://developer.imdb.com/non-commercial-datasets/
@@ -54,68 +45,91 @@ files <- list(
   title_basics = "https://datasets.imdbws.com/title.basics.tsv.gz"
 )
 
-# Function to download and read files with conditions
+# Validate a downloaded TSV.gz file by reading its header via DuckDB.
+# Deletes the file and stops if corrupt or missing expected columns.
+validate_tsv_gz <- function(path, expected_cols) {
+  result <- tryCatch(
+    dbGetQuery(con, glue(
+      "SELECT * FROM read_csv_auto('{path}', delim='\\t', nullstr='\\N') LIMIT 0"
+    )),
+    error = function(e) e
+  )
+  if (inherits(result, "error")) {
+    file.remove(path)
+    stop(glue("Corrupt file removed ({basename(path)}): {result$message}"))
+  }
+  missing <- setdiff(expected_cols, names(result))
+  if (length(missing) > 0) {
+    file.remove(path)
+    stop(glue(
+      "Unexpected structure in {basename(path)}, missing columns: {paste(missing, collapse=', ')}. File removed."
+    ))
+  }
+  log_info("  Structure OK: {basename(path)} has all expected columns")
+}
+
+# Returns the Content-Length of a remote URL via a HEAD request, or NA on failure.
+remote_size <- function(url) {
+  tryCatch({
+    resp <- curl_fetch_memory(url, handle = new_handle(nobody = TRUE, followlocation = TRUE))
+    hdrs <- parse_headers(rawToChar(resp$headers), multiple = FALSE)
+    cl   <- hdrs[grepl("^content-length:", hdrs, ignore.case = TRUE)]
+    if (length(cl) == 0) return(NA_real_)
+    as.numeric(trimws(sub("(?i)content-length:\\s*", "", cl[length(cl)], perl = TRUE)))
+  }, error = function(e) NA_real_)
+}
+
+# Function to download and create a lazy DuckDB tbl from an IMDb TSV.gz file
 read_and_filter <- function(
   url,
   path,
   select_cols,
-  na_strings = "\\N",
-  filters = NULL,
   id_filter = NULL,
   id_col = "tconst"
 ) {
-  # Download file if it doesn't exist
   if (!file.exists(path)) {
+    log_info("Downloading {basename(path)}...")
     tryCatch(
-      {
-        download.file(url, path, mode = "wb")
-      },
-      error = function(e) {
-        stop(paste("Failed to download file:", e$message))
-      }
+      curl_download(
+        url, path,
+        handle = new_handle(timeout = 600, connecttimeout = 30),
+        quiet = FALSE
+      ),
+      error = function(e) stop(paste("Failed to download:", e$message))
     )
+    validate_tsv_gz(path, select_cols)
+  } else {
+    remote <- remote_size(url)
+    local  <- file.info(path)$size
+    if (!is.na(remote) && local != remote) {
+      log_warn(
+        "Size mismatch for {basename(path)}: local={local} bytes, remote={remote} bytes — consider deleting and re-running"
+      )
+    } else {
+      log_info("  Size OK: {basename(path)} ({local} bytes)")
+    }
   }
 
-  # Safely create SQL for column selection
-  cols_sql <- paste(
-    dbQuoteIdentifier(con, select_cols),
-    collapse = ", "
-  )
+  cols_sql <- paste(dbQuoteIdentifier(con, select_cols), collapse = ", ")
+  dt <- tbl(con, sql(glue(
+    "SELECT {cols_sql} FROM read_csv_auto('{path}', delim='\\t', nullstr='\\N', ignore_errors=true)"
+  )))
 
-  # Create and execute query with proper error handling
-  tryCatch(
-    {
-      query <- sprintf(
-        paste0(
-          "SELECT %s FROM read_csv_auto('%s', ",
-          "delim='\\t', nullstr='\\N', ",
-          "ignore_errors=true, sample_size=-1)"
-        ),
-        cols_sql,
-        path
-      )
-      dt <- tbl(con, sql(query))
+  if (!is.null(id_filter)) {
+    dt <- dt |> filter(!!sym(id_col) %in% id_filter)
+  }
 
-      # Apply filters
-      if (!is.null(id_filter)) {
-        dt <- dt |> filter(!!sym(id_col) %in% id_filter)
-      }
-
-      if (!is.null(filters)) {
-        for (filter in filters) {
-          dt <- dt |> filter(eval(parse(text = filter)))
-        }
-      }
-
-      dt
-    },
-    error = function(e) {
-      stop(paste("Failed to process file:", e$message))
-    }
-  )
+  dt
 }
 
-# Load and filter initial datasets first
+# Define minimum vote threshold
+# IMDb uses different thresholds for different lists
+# For Top 250, they use around 25,000 votes as minimum
+m <- 25000
+
+# [1] Load title_basics and title_ratings (lazy — no scan yet)
+t <- Sys.time()
+log_info("[1/7] Building title_basics + title_ratings lazy queries...")
 title_basics <- read_and_filter(
   files$title_basics,
   "data/title.basics.tsv.gz",
@@ -134,55 +148,35 @@ title_basics <- read_and_filter(
     titleType %in% c("movie", "tvMovie")
   )
 
-# Define minimum vote threshold
-# IMDb uses different thresholds for different lists
-# For Top 250, they use around 25,000 votes as minimum
-m <- 25000
-
-# Calculate ratings from all titles
 title_ratings <- read_and_filter(
   files$title_ratings,
   "data/title.ratings.tsv.gz",
   c("tconst", "averageRating", "numVotes")
 ) |>
   filter(!is.na(numVotes), numVotes > 0)
+log_info("[1/7] Done in {elapsed(t)}s")
 
-# Calculate C (global weighted average)
-# First collect the data to perform the calculation in R
-title_ratings_collected <- title_ratings |> collect()
+# [2] Compute global weighted average in DuckDB
+t <- Sys.time()
+log_info("[2/7] Computing global weighted average (C)...")
+global_avg <- title_ratings |>
+  summarise(global_avg = sum(averageRating * numVotes) / sum(numVotes)) |>
+  collect() |>
+  pull(global_avg)
+log_info("[2/7] Done in {elapsed(t)}s — C = {round(global_avg, 4)}")
 
-# Calculate the weighted average in R
-global_avg <- weighted.mean(
-  title_ratings_collected$averageRating,
-  title_ratings_collected$numVotes
-)
-
-print(paste("Global weighted average (C):", global_avg))
-
-# Create title_basics_ratings with the IMDb weighted formula
+# [3] Build and materialise top-5000 rankings in DuckDB
+# IMDb Bayesian weighted formula: WR = (v/(v+m)) * R + (m/(v+m)) * C
+t <- Sys.time()
+log_info("[3/7] Computing top-5000 rankings (join + sort + compute)...")
 title_basics_ratings <- title_basics |>
   inner_join(title_ratings, by = "tconst") |>
-  # Filter to ensure each title has at least m votes
   filter(numVotes >= m) |>
-  # Apply the IMDb Bayesian weighted average formula
-  # WR = (v/(v+m)) * R + (m/(v+m)) * C
-  # Where:
-  # WR = Weighted Rating
-  # R = Average Rating for the movie
-  # v = Number of votes for the movie
-  # m = Minimum votes required (25,000)
-  # C = Mean vote across the whole report (currently 7.0)
   mutate(
     score = ((numVotes / (numVotes + m)) * averageRating) +
       ((m / (numVotes + m)) * global_avg),
-    # Round score to 1 decimal place for comparison purposes
     score_rounded = round(score, 1)
   ) |>
-  # Sort by the weighted score in descending order
-  # For ties (same score_rounded), use multiple criteria:
-  # 1. Exact score (not rounded)
-  # 2. Number of votes (more votes is better)
-  # 3. Average rating (higher rating is better
   arrange(
     desc(score_rounded),
     desc(numVotes),
@@ -193,29 +187,30 @@ title_basics_ratings <- title_basics |>
   mutate(rank = row_number()) |>
   filter(rank <= 5000) |>
   compute()
+log_info("[3/7] Done in {elapsed(t)}s")
 
-# Get the filtered tconst list
-common_tconst <- title_basics_ratings |>
-  select(tconst) |>
-  collect() |>
-  pull(tconst)
-
-# Now load other files using the filtered tconst list
+# [4] Load title_crew for the top-5000 titles
+t <- Sys.time()
+log_info("[4/7] Loading title_crew for top-5000 titles...")
+# title_basics_ratings is already in DuckDB — join directly instead of
+# collecting tconsts to R and passing back as a giant IN (...) clause
 title_crew <- read_and_filter(
   files$title_crew,
   "data/title.crew.tsv.gz",
-  c("tconst", "directors", "writers"),
-  id_filter = common_tconst
+  c("tconst", "directors", "writers")
 ) |>
+  inner_join(title_basics_ratings |> select(tconst), by = "tconst") |>
   collect()
+log_info("[4/7] Done in {elapsed(t)}s — {nrow(title_crew)} crew rows")
 
-# Get crew IDs only from the filtered movies
+# [5] Load name_basics filtered to relevant crew members
+t <- Sys.time()
+log_info("[5/7] Loading name_basics for crew members...")
 crew_ids <- unique(c(
   unlist(strsplit(title_crew$directors, ",")),
   unlist(strsplit(title_crew$writers, ","))
 ))
 
-# Load name_basics with only relevant crew members
 name_basics <- read_and_filter(
   files$name_basics,
   "data/name.basics.tsv.gz",
@@ -224,29 +219,48 @@ name_basics <- read_and_filter(
   id_filter = crew_ids
 ) |>
   collect()
+log_info("[5/7] Done in {elapsed(t)}s — {length(crew_ids)} unique crew IDs, {nrow(name_basics)} names loaded")
 
-# Extract directors and writers data
-title_crew_long <- title_crew |>
-  separate_rows(directors, sep = ",") |>
-  separate_rows(writers, sep = ",")
+# [6] Aggregate crew names in DuckDB using string_split/unnest/string_agg
+t <- Sys.time()
+log_info("[6/7] Aggregating crew names in DuckDB...")
+duckdb::duckdb_register(con, "title_crew_db", title_crew)
+duckdb::duckdb_register(con, "name_basics_db", name_basics)
 
-# Combine directors and writers into one dataframe
-title_crew_long_directors <- title_crew_long |>
-  filter(!is.na(directors)) |>
-  select(tconst, nconst = directors) |>
-  mutate(role = "directors")
+crew_names <- tbl(con, sql("
+  WITH crew_expanded AS (
+    SELECT tconst, 'directors' AS role,
+           unnest(string_split(directors, ',')) AS nconst
+    FROM title_crew_db WHERE directors IS NOT NULL
+    UNION ALL
+    SELECT tconst, 'writers' AS role,
+           unnest(string_split(writers, ',')) AS nconst
+    FROM title_crew_db WHERE writers IS NOT NULL
+  ),
+  crew_with_names AS (
+    SELECT DISTINCT c.tconst, c.role,
+           COALESCE(n.primaryName, 'Unknown') AS primaryName
+    FROM crew_expanded c
+    LEFT JOIN name_basics_db n ON c.nconst = n.nconst
+  )
+  SELECT tconst, role, string_agg(primaryName, ', ') AS names
+  FROM crew_with_names
+  GROUP BY tconst, role
+")) |>
+  collect() |>
+  pivot_wider(
+    names_from = role,
+    values_from = names,
+    values_fill = list(names = NA_character_)
+  )
 
-title_crew_long_writers <- title_crew_long |>
-  filter(!is.na(writers)) |>
-  select(tconst, nconst = writers) |>
-  mutate(role = "writers")
+duckdb::duckdb_unregister(con, "title_crew_db")
+duckdb::duckdb_unregister(con, "name_basics_db")
+log_info("[6/7] Done in {elapsed(t)}s")
 
-title_crew_long_combined <- bind_rows(
-  title_crew_long_directors,
-  title_crew_long_writers
-)
-
-# Ensure unique ranks by using tconst as a secondary criterion
+# [7] Collect rankings, join crew, build links, write CSV
+t <- Sys.time()
+log_info("[7/7] Collecting rankings, joining crew, writing CSV...")
 title_basics_ratings <- title_basics_ratings |>
   select(
     tconst,
@@ -258,36 +272,11 @@ title_basics_ratings <- title_basics_ratings |>
     runtimeMinutes,
     genres
   ) |>
-  collect() |>
-  mutate(genres = gsub(",([^ ])", ", \\1", genres))
+  mutate(genres = regexp_replace(genres, ",([^ ])", ", \\1", "g")) |>
+  collect()
 
-# Merge with name_basics to get names of directors and writers
-crew_names <- title_crew_long_combined |>
-  left_join(name_basics, by = "nconst") |>
-  mutate(
-    primaryName = ifelse(
-      is.na(primaryName),
-      "Unknown",
-      primaryName
-    )
-  ) |>
-  group_by(tconst, role) |>
-  summarise(
-    names = paste(unique(primaryName), collapse = ", "),
-    .groups = "drop"
-  ) |>
-  pivot_wider(
-    names_from = role,
-    values_from = names,
-    values_fill = list(names = NA_character_)
-  )
-
-# Merge directors and writers names with the result data frame
 results_with_crew <- title_basics_ratings |>
-  left_join(crew_names, by = "tconst")
-
-# Create the new Title/IMDb Link column
-results_with_crew <- results_with_crew |>
+  left_join(crew_names, by = "tconst") |>
   mutate(
     IMDbLink = paste0(
       '<a href="https://www.imdb.com/title/',
@@ -303,10 +292,7 @@ results_with_crew <- results_with_crew |>
       primaryTitle,
       "</a>"
     )
-  )
-
-# Order and select columns
-results_with_crew <- results_with_crew |>
+  ) |>
   arrange(rank) |>
   select(
     tconst,
@@ -323,7 +309,6 @@ results_with_crew <- results_with_crew |>
     Title_IMDb_Link
   )
 
-# Save results to CSV
 output_dir <- "app/data"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
@@ -333,30 +318,13 @@ write.csv(
   file.path(output_dir, "results_with_crew.csv"),
   row.names = FALSE
 )
-print(paste(
-  "File saved to:",
-  file.path(output_dir, "results_with_crew.csv")
-))
+log_info("[7/7] Done in {elapsed(t)}s — saved to {file.path(output_dir, 'results_with_crew.csv')}")
 
-# Free memory by running garbage collection
 gc()
 
-# End measuring time
-end_time <- Sys.time()
-
-# Calculate and print the time taken in minutes and seconds
-time_taken <- end_time - start_time
-total_seconds <- as.numeric(time_taken, units = "secs")
-minutes <- floor(total_seconds / 60)
-seconds <- total_seconds %% 60
-
-print(paste(
-  "Time taken:",
-  minutes,
-  "minutes and",
-  round(seconds, 2),
-  "seconds"
-))
+# Total time
+total_seconds <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
+log_info("Total time: {floor(total_seconds / 60)}m {round(total_seconds %% 60, 2)}s")
 
 # Close DuckDB connection at the end
 dbDisconnect(con, shutdown = TRUE)
