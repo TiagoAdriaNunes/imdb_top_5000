@@ -3,6 +3,14 @@
   z-index: 99999 !important;
 }
 
+// Allow virtual select dropdowns to overflow the sidebar
+.main-sidebar,
+.sidebar,
+.sidebar-menu,
+.treeview-menu {
+  overflow: visible !important;
+}
+
 // Sidebar spacing overrides
 .sidebar-menu > .menu-item {
   margin-bottom: 0px !important;
