@@ -177,13 +177,7 @@ title_basics_ratings <- title_basics |>
       ((m / (numVotes + m)) * global_avg),
     score_rounded = round(score, 1)
   ) |>
-  arrange(
-    desc(score_rounded),
-    desc(numVotes),
-    desc(score),
-    desc(averageRating),
-    tconst
-  ) |>
+  window_order(desc(score_rounded), desc(numVotes), desc(score), desc(averageRating), tconst) |>
   mutate(rank = row_number()) |>
   filter(rank <= 5000) |>
   compute()
