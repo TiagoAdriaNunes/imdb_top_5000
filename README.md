@@ -17,16 +17,18 @@ This GitHub repository contains the code for a Shiny dashboard written in R that
 # Clone repository
 git clone https://github.com/TiagoAdriaNunes/imdb_top_5000.git
 cd imdb_top_5000
+```
 
+```r
 # Install dependencies
 install.packages("renv")
 renv::restore()
 
-# Run analysis script (DuckDB version)
+# Run analysis script — downloads IMDb data and generates app/data/results_with_crew.csv
 source("imdb_analysis_duckdb_version.R")
 
-# Launch Shiny app
-shiny::runApp("./app/app.R")
+# Launch Shiny app (must be run from the app/ directory)
+shiny::runApp("app")
 ```
 
 ## Data Processing
