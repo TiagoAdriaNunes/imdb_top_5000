@@ -27,7 +27,7 @@ renv::restore()
 # Run analysis script — downloads IMDb data and generates app/data/results_with_crew.csv
 source("imdb_analysis_duckdb_version.R")
 
-# Launch Shiny app (from the app/ directory)
+# Launch Shiny app (from the main directory)
 shiny::runApp()
 ```
 
