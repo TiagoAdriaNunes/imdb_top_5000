@@ -16,7 +16,7 @@ jobs:
     
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup system dependencies
         run: |
@@ -74,7 +74,7 @@ jobs:
           ls -la app/data || echo "app/data directory not found"
           
       - name: Upload results artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: imdb-results
           path: app/data/results_with_crew.csv
